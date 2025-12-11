@@ -51,10 +51,52 @@ app.post('/proxy', async (req, res) => {
     }
 
     // Basic redaction example (can be replaced with more robust scrubber):
-    const scrubbedPrompt = prompt
+    // Phase 1: names, SSN-style IDs, and emails
+    let scrubbedPrompt = prompt
       .replace(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g, '[redacted-name]')
       .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[redacted-ssn]')
       .replace(/[\w.-]+@[\w.-]+\.[A-Za-z]{2,}/g, '[redacted-email]');
+
+    // Phase 2: crypto-related secrets and wallet addresses
+    // Seed phrases / private keys / recovery phrases (very rough heuristic)
+    scrubbedPrompt = scrubbedPrompt.replace(
+      /(seed phrase|recovery phrase|mnemonic phrase|private key|wallet seed)/gi,
+      '[redacted-crypto-secret]'
+    );
+    // Ethereum-style addresses
+    scrubbedPrompt = scrubbedPrompt.replace(
+      /\b0x[a-fA-F0-9]{40}\b/g,
+      '[redacted-eth-address]'
+    );
+    // Bitcoin-style base58 addresses (simple length-based heuristic)
+    scrubbedPrompt = scrubbedPrompt.replace(
+      /\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b/g,
+      '[redacted-btc-address]'
+    );
+
+    // Phase 3: financial account / card-like patterns
+    // Common credit card-like sequences (very approximate)
+    scrubbedPrompt = scrubbedPrompt.replace(
+      /\b(?:\d[ -]*?){13,16}\b/g,
+      '[redacted-card-or-account]'
+    );
+    // Long digit runs that look like account or investment IDs
+    scrubbedPrompt = scrubbedPrompt.replace(
+      /\b\d{10,20}\b/g,
+      '[redacted-account-number]'
+    );
+
+    // Phase 4: medical diagnostic hints (very coarse for now)
+    // ICD-10 style codes (e.g. F32.1, E11.9)
+    scrubbedPrompt = scrubbedPrompt.replace(
+      /\b[ABDEGHJKLMNPRSTVWXYZ]\d{2}(?:\.\d{1,4})?\b/g,
+      '[redacted-medical-code]'
+    );
+    // Lines starting with Diagnosis:
+    scrubbedPrompt = scrubbedPrompt.replace(
+      /(Diagnosis\s*:\s*)(.+)/gi,
+      '$1[redacted-medical-diagnosis]'
+    );
 
     const scrubbedMetadata = metadata
       ? { ...metadata, user: undefined, email: undefined, session_id: undefined }
