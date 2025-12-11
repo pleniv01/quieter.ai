@@ -10,7 +10,9 @@
 
     <nav class="nav">
       <RouterLink to="/privacy" class="nav-link">Privacy</RouterLink>
-      <RouterLink to="/privacy-policy" class="nav-link">Privacy Policy</RouterLink>
+      <RouterLink to="/dashboard" class="nav-link">Dashboard</RouterLink>
+      <RouterLink to="/signup" class="nav-link">Sign up</RouterLink>
+      <RouterLink to="/login" class="nav-link">Log in</RouterLink>
     </nav>
   </header>
 </template>

@@ -376,12 +376,15 @@ app.post('/query', tenantAuth, async (req, res) => {
     const textPart = message.content?.find?.(p => p.type === 'text');
     const modelText = textPart?.text || '';
 
+    // Very rough token estimate: length / 4 (can be improved later)
+    const approxTokens = Math.round(scrubbedPrompt.length / 4);
+
     // Log basic usage for this tenant
     const usageId = crypto.randomUUID();
     try {
       await pool.query(
-        'INSERT INTO usage_logs (id, tenant_id, model, latency_ms, status) VALUES ($1, $2, $3, $4, $5)',
-        [usageId, req.tenantId, modelName, latencyMs, 'success']
+        'INSERT INTO usage_logs (id, tenant_id, model, latency_ms, tokens, redactions_count, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+        [usageId, req.tenantId, modelName, latencyMs, approxTokens, 0, 'success']
       );
     } catch (logErr) {
       console.error('Failed to log usage', logErr);
