@@ -3,7 +3,7 @@
   publish = "frontend/dist"
 
   [build.environment]
-  ROLLUP_DISABLE_NATIVE = "true"
+  ROLLUP_DISABLE_NATIVE = "1"
 
 [dev]
   command = "cd frontend && npm run dev"
