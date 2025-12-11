@@ -91,12 +91,16 @@ h1 {
 }
 
 .who ul {
-  margin: 0.75rem 0 1rem;
-  padding-left: 1.2rem;
+  margin: 0.75rem 0 0.5rem;
+  padding-left: 1.6rem; /* a bit more horizontal indent from the edge */
   color: var(--color-text-muted);
 }
 
 .who li + li {
   margin-top: 0.35rem;
+}
+
+.who .note {
+  margin-top: 0.75rem; /* extra vertical gap between bullets and statement */
 }
 </style>
