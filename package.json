@@ -1,0 +1,12 @@
+{
+  "name": "quieter-ai-root",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "api",
+    "frontend"
+  ],
+  "scripts": {
+    "start": "cd api && npm install && npm start"
+  }
+}
