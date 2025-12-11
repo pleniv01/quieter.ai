@@ -21,10 +21,9 @@ const pool = new Pool({
   ssl: process.env.PGSSLMODE === 'disable' ? false : { rejectUnauthorized: false },
 });
 
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: false,
-}));
+// For now, allow all origins so the Netlify frontend can talk to this API.
+// You can tighten this later to a specific origin.
+app.use(cors());
 
 app.use(express.json());
 
