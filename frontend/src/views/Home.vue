@@ -87,6 +87,7 @@ h1 {
   max-width: 720px;
   margin-left: auto;
   margin-right: auto;
+  padding: 0 1.25rem; /* horizontal inset so text doesn't hug the card edge */
 }
 
 .who ul {
