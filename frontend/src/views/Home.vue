@@ -14,10 +14,13 @@
       </p>
     </div>
   </section>
+
+  <ProxyTestForm />
 </template>
 
 <script setup>
 import { RouterLink } from 'vue-router';
+import ProxyTestForm from '../components/ProxyTestForm.vue';
 </script>
 
 <style scoped>
@@ -28,11 +31,12 @@ import { RouterLink } from 'vue-router';
 
 .hero-card {
   background: #ffffff;
-  border-radius: var(--color-radius-lg, 14px);
+  border-radius: var(--color-radius-lg, 18px);
   box-shadow: var(--shadow-soft);
-  padding: 2.5rem 2.25rem;
-  border: 1px solid var(--color-border);
+  padding: 2.75rem 2.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.03);
   max-width: 720px;
+  border-top: 4px solid var(--color-primary);
 }
 
 h1 {

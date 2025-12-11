@@ -26,5 +26,9 @@ import AppFooter from './components/AppFooter.vue';
   padding: 2.5rem 1.5rem 3rem;
   max-width: 960px;
   margin: 0 auto;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 </style>
