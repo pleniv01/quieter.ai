@@ -3,7 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import pkg from 'pg';
 import Anthropic from '@anthropic-ai/sdk';
-
+import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 dotenv.config();
 
 const { Pool } = pkg;
@@ -40,6 +41,136 @@ app.get('/health', async (req, res) => {
   } catch (err) {
     console.error('Health check failed', err);
     res.status(500).json({ status: 'error', message: 'DB connection failed' });
+  }
+});
+
+// Auth: signup creates account + tenant + initial balance + API key
+app.post('/auth/signup', async (req, res) => {
+  try {
+    const { email, password, tenantName } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ ok: false, error: 'Email and password are required' });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const existing = await pool.query('SELECT id FROM accounts WHERE email = $1 LIMIT 1', [
+      normalizedEmail,
+    ]);
+    if (existing.rows.length) {
+      return res.status(409).json({ ok: false, error: 'Account already exists' });
+    }
+
+    const accountId = crypto.randomUUID();
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    await pool.query(
+      'INSERT INTO accounts (id, email, password_hash) VALUES ($1, $2, $3)',
+      [accountId, normalizedEmail, passwordHash]
+    );
+
+    const tenantId = crypto.randomUUID();
+    const rawApiKey = 'qtr_' + crypto.randomBytes(24).toString('base64url');
+    const apiKeyHash = hashApiKey(rawApiKey);
+    const name = tenantName || 'Default Tenant';
+
+    await pool.query(
+      'INSERT INTO tenants (id, account_id, name, api_key_hash, plan) VALUES ($1, $2, $3, $4, $5)',
+      [tenantId, accountId, name, apiKeyHash, 'dev']
+    );
+
+    const balanceId = crypto.randomUUID();
+    await pool.query(
+      'INSERT INTO balances (id, tenant_id, credits_remaining, billing_email, plan) VALUES ($1, $2, $3, $4, $5)',
+      [balanceId, tenantId, 0, normalizedEmail, 'dev']
+    );
+
+    return res.status(201).json({
+      ok: true,
+      accountId,
+      tenantId,
+      apiKey: rawApiKey,
+    });
+  } catch (err) {
+    console.error('Signup error', err);
+    return res.status(500).json({ ok: false, error: 'Signup failed' });
+  }
+});
+
+// Auth: login for dashboard (returns basic account info only)
+app.post('/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ ok: false, error: 'Email and password are required' });
+    }
+
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const result = await pool.query(
+      'SELECT id, password_hash FROM accounts WHERE email = $1 LIMIT 1',
+      [normalizedEmail]
+    );
+
+    if (!result.rows.length) {
+      return res.status(401).json({ ok: false, error: 'Invalid email or password' });
+    }
+
+    const account = result.rows[0];
+    const valid = await bcrypt.compare(password, account.password_hash);
+    if (!valid) {
+      return res.status(401).json({ ok: false, error: 'Invalid email or password' });
+    }
+
+    // For now just echo basic info; session/JWT can be added later for dashboard auth
+    return res.json({ ok: true, accountId: account.id, email: normalizedEmail });
+  } catch (err) {
+    console.error('Login error', err);
+    return res.status(500).json({ ok: false, error: 'Login failed' });
+  }
+});
+
+// Usage summary for an account (simple aggregation by accountId)
+app.get('/me/usage', async (req, res) => {
+  try {
+    const accountId = req.query.accountId;
+    if (!accountId) {
+      return res.status(400).json({ ok: false, error: 'accountId is required' });
+    }
+
+    const tenantsRes = await pool.query(
+      'SELECT id FROM tenants WHERE account_id = $1',
+      [accountId]
+    );
+    const tenantIds = tenantsRes.rows.map(r => r.id);
+
+    if (!tenantIds.length) {
+      return res.json({
+        ok: true,
+        accountId,
+        totalRequests: 0,
+        totalLatencyMs: 0,
+        totalTokens: 0,
+        totalRedactions: 0,
+      });
+    }
+
+    const usageRes = await pool.query(
+      'SELECT COUNT(*) AS total_requests, COALESCE(SUM(latency_ms),0) AS total_latency, COALESCE(SUM(tokens),0) AS total_tokens, COALESCE(SUM(redactions_count),0) AS total_redactions FROM usage_logs WHERE tenant_id = ANY($1::text[])',
+      [tenantIds]
+    );
+
+    const row = usageRes.rows[0] || {};
+
+    return res.json({
+      ok: true,
+      accountId,
+      totalRequests: Number(row.total_requests || 0),
+      totalLatencyMs: Number(row.total_latency || 0),
+      totalTokens: Number(row.total_tokens || 0),
+      totalRedactions: Number(row.total_redactions || 0),
+    });
+  } catch (err) {
+    console.error('Usage summary error', err);
+    return res.status(500).json({ ok: false, error: 'Could not load usage' });
   }
 });
 
