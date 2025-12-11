@@ -23,7 +23,10 @@ const pool = new Pool({
 
 // For now, allow all origins so the Netlify frontend can talk to this API.
 // You can tighten this later to a specific origin.
-app.use(cors());
+app.use(cors({ origin: true }));
+
+// Explicitly handle preflight for the /proxy endpoint so browsers see CORS headers.
+app.options('/proxy', cors({ origin: true }));
 
 app.use(express.json());
 
