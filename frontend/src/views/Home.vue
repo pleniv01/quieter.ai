@@ -83,14 +83,10 @@ h1 {
 }
 
 .who {
-  margin-top: 2.5rem;
+  margin-top: 3.5rem; /* more vertical space below hero card */
   max-width: 720px;
   margin-left: auto;
   margin-right: auto;
-}
-
-.who h2 {
-  margin-top: 1.25rem; /* space between hero card and heading */
 }
 
 .who ul {
