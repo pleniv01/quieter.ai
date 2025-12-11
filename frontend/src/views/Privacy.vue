@@ -33,12 +33,18 @@
     <section class="panel">
       <h2>What Quieter.ai removes or replaces</h2>
 
+      <p class="clarify">
+        The core of Quieter.ai is network identity shielding: GPT providers see Quieter.ai’s
+        IPs and keys, not yours. On top of that, you can optionally enable extra content
+        scrubbing, which further reduces what leaks into model logs.
+      </p>
+
       <article class="item">
-        <h3>1. Personal Identifiers</h3>
+        <h3>1. Personal Identifiers (optional scrub layer)</h3>
         <p>
-          Proxies pass through whatever your app sends.
-          <strong>Quieter.ai strips names, emails, usernames, account references, session IDs,
-          and hidden metadata</strong> before anything reaches the AI model.
+          Proxies pass through whatever your app sends. When Quieter’s scrub layer is turned
+          on, it can strip names, emails, usernames, account references, session IDs, and
+          similar metadata before anything reaches the AI model.
         </p>
       </article>
 
@@ -59,16 +65,17 @@
       </article>
 
       <article class="item">
-        <h3>3. Unintended identity in your content</h3>
-        <p>If your app accidentally includes:</p>
+        <h3>3. Unintended identity in your content (optional scrub layer)</h3>
+        <p>If your app or browser accidentally includes:</p>
         <ul>
           <li>“User: Sarah T.”</li>
           <li>“My student ID is…”</li>
           <li>“Here’s my private note attached to the prompt…”</li>
         </ul>
         <p>
-          A proxy will forward it upstream.
-          <strong>Quieter.ai intercepts, sanitizes, anonymizes, or blocks it.</strong>
+          A proxy will forward it upstream unchanged. With Quieter’s scrub layer enabled,
+          those patterns can be intercepted, anonymized, or blocked <em>in addition to</em>
+          the identity shield you get by default.
         </p>
       </article>
     </section>
@@ -82,6 +89,11 @@
 .privacy {
   max-width: 720px;
   margin: 0 auto;
+}
+
+.clarify {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
 }
 
 .privacy-header {
