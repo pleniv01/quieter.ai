@@ -3,24 +3,36 @@
     <div class="hero-card">
       <h1>Quieter.ai</h1>
       <p class="subtitle">
-        A privacy shield for AI — keeping your identity and context out of the model.
+        A privacy shield between your apps and GPT providers — they only ever see Quieter.ai,
+        never your users.
       </p>
       <div class="badge-row">
-        <span class="badge">Vue · Vite · Netlify · Railway</span>
+        <span class="badge">Identity shield · Multi-tenant proxy · SDK-ready</span>
       </div>
       <p class="note">
-        Start by exploring how we protect you on the
-        <RouterLink to="/privacy">Privacy</RouterLink> page.
+        Your users talk to your app. Your app talks to Quieter.ai. Quieter.ai talks to the
+        model. The model never knows who your users are.
       </p>
     </div>
   </section>
 
-  <ProxyTestForm />
+  <section class="who">
+    <h2>Who Quieter.ai is for</h2>
+    <ul>
+      <li>Wellness, journaling, and mental-health apps that promise true privacy</li>
+      <li>Education & student tools where identity and text must stay off provider logs</li>
+      <li>Enterprise internal tools that cannot expose employee conversations upstream</li>
+      <li>Consumer productivity and note-taking apps handling personal narratives</li>
+      <li>Agencies and studios building GPT apps for privacy-conscious clients</li>
+    </ul>
+    <p class="note">
+      Learn how the shield works on the <RouterLink to="/privacy">Privacy</RouterLink> page.
+    </p>
+  </section>
 </template>
 
 <script setup>
 import { RouterLink } from 'vue-router';
-import ProxyTestForm from '../components/ProxyTestForm.vue';
 </script>
 
 <style scoped>
@@ -68,5 +80,22 @@ h1 {
 .note {
   font-size: 0.9rem;
   color: var(--color-text-muted);
+}
+
+.who {
+  margin-top: 2.5rem;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.who ul {
+  margin: 0.75rem 0 1rem;
+  padding-left: 1.2rem;
+  color: var(--color-text-muted);
+}
+
+.who li + li {
+  margin-top: 0.35rem;
 }
 </style>

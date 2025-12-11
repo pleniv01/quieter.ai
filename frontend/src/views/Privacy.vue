@@ -9,9 +9,9 @@
     </header>
 
     <p>
-      When you use AI, your words can reveal far more than you realize. A standard proxy can
-      hide your IP address — but it can’t hide <em>you</em>. It can’t protect your identity
-      from slipping into headers, metadata, or the content itself.
+      When you use GPT-style models today, they see more than just your text. They see your
+      network, your keys, and the shape of your traffic. A normal proxy can hide your IP
+      address — but it can’t hide <em>who</em> is really behind the request.
     </p>
 
     <p>
@@ -19,18 +19,19 @@
     </p>
 
     <section class="panel panel-highlight">
-      <h2>More than a proxy. A true privacy shield.</h2>
+      <h2>More than a proxy. A true identity shield.</h2>
       <p>
-        A normal proxy hides your IP. It keeps websites from seeing where you’re coming from.
+        With Quieter.ai in the middle, GPT providers only ever see Quieter.ai’s IPs and API
+        keys, not your users or your infrastructure.
       </p>
       <p>
-        <strong>Quieter.ai hides your identity, your data, and your context.</strong>
-        It ensures the AI model never sees who you are — only the text you choose to send.
+        Your app → Quieter.ai → GPT provider. The model never sees your tenant’s network,
+        cookies, or accounts.
       </p>
     </section>
 
     <section class="panel">
-      <h2>What Quieter.ai Removes (and a Proxy Doesn’t)</h2>
+      <h2>What Quieter.ai removes or replaces</h2>
 
       <article class="item">
         <h3>1. Personal Identifiers</h3>
