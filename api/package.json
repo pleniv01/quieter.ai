@@ -4,10 +4,10 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-  "dev": "node index.js",
-  "start": "node index.js",
-  "migrate": "node migrate.js",
-  "seed-tenant": "node seed-tenant.js",
+    "dev": "node index.js",
+    "start": "node index.js",
+    "migrate": "node migrate.js",
+    "seed-tenant": "node seed-tenant.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
