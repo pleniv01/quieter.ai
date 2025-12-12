@@ -44,8 +44,10 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 const apiBase = import.meta.env.VITE_API_BASE_URL;
+const router = useRouter();
 
 const email = ref('');
 const password = ref('');
@@ -76,6 +78,8 @@ async function onSubmit() {
     if (data.accountId) {
       localStorage.setItem('quieterAccountId', data.accountId);
       localStorage.setItem('quieterEmail', email.value);
+      // After successful signup, send the user to the dashboard
+      router.push({ name: 'Dashboard' });
     }
   } catch (e) {
     console.error(e);

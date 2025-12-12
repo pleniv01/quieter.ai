@@ -21,19 +21,31 @@
       </button>
 
       <p v-if="error" class="error">{{ error }}</p>
+      <p v-if="info" class="info">{{ info }}</p>
     </form>
   </section>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 
 const apiBase = import.meta.env.VITE_API_BASE_URL;
+const router = useRouter();
 
 const email = ref('');
 const password = ref('');
 const loading = ref(false);
 const error = ref('');
+const info = ref('');
+
+onMounted(() => {
+  const existingId = localStorage.getItem('quieterAccountId');
+  const existingEmail = localStorage.getItem('quieterEmail');
+  if (existingId) {
+    info.value = `You are already logged in as ${existingEmail || '(unknown email)'}.`;
+  }
+});
 
 async function onSubmit() {
   error.value = '';
@@ -55,6 +67,8 @@ async function onSubmit() {
     if (data.accountId) {
       localStorage.setItem('quieterAccountId', data.accountId);
       localStorage.setItem('quieterEmail', data.email || email.value);
+      // After successful login, go straight to the dashboard
+      router.push({ name: 'Dashboard' });
     }
   } catch (e) {
     console.error(e);
@@ -120,6 +134,12 @@ button:disabled {
 
 .error {
   color: #b91c1c;
+  font-size: 0.85rem;
+}
+
+.info {
+  margin-top: 0.5rem;
+  color: var(--color-text-muted);
   font-size: 0.85rem;
 }
 </style>

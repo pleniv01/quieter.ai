@@ -10,6 +10,10 @@
     </div>
 
     <div v-else class="card">
+      <p class="dev-link">
+        For implementation details, see the
+        <a href="/docs/how-to-use-quieter-api-key" target="_blank" rel="noopener">API key guide</a>.
+      </p>
       <p class="meta">
         Signed in as <strong>{{ email || '(unknown email)' }}</strong><br />
         Account ID: <code>{{ accountId }}</code>
@@ -114,6 +118,16 @@ onMounted(() => {
   font-size: 0.9rem;
   color: var(--color-text-muted);
   margin-bottom: 1rem;
+}
+
+.dev-link {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.dev-link a {
+  color: #155e75;
 }
 
 button {
