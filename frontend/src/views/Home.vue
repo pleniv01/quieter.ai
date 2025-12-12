@@ -45,14 +45,14 @@ import { RouterLink } from 'vue-router';
   background: #ffffff;
   border-radius: var(--color-radius-lg, 18px);
   box-shadow: var(--shadow-soft);
-  padding: 2.75rem 2.5rem;
+  padding: 2.25rem 1.9rem;
   border: 1px solid rgba(0, 0, 0, 0.03);
   max-width: 720px;
   border-top: 4px solid var(--color-primary);
 }
 
 h1 {
-  font-size: 2.4rem;
+  font-size: 2.2rem;
   margin-bottom: 0.75rem;
 }
 
@@ -83,7 +83,7 @@ h1 {
 }
 
 .who {
-  margin-top: 3.5rem; /* more vertical space below hero card */
+  margin-top: 2.75rem; /* more vertical space below hero card */
   max-width: 720px;
   margin-left: auto;
   margin-right: auto;
@@ -102,5 +102,28 @@ h1 {
 
 .who .note {
   margin-top: 0.75rem; /* extra vertical gap between bullets and statement */
+}
+
+@media (max-width: 640px) {
+  .hero-card {
+    padding: 1.75rem 1.4rem;
+  }
+
+  h1 {
+    font-size: 1.85rem;
+  }
+
+  .subtitle {
+    font-size: 0.98rem;
+  }
+
+  .who {
+    margin-top: 2.1rem;
+    padding: 0 0.5rem;
+  }
+
+  .who ul {
+    padding-left: 1.25rem;
+  }
 }
 </style>

@@ -23,12 +23,14 @@ import AppFooter from './components/AppFooter.vue';
 
 .app-main {
   flex: 1;
-  padding: 2.5rem 1.5rem 3rem;
+  padding: 1.75rem 1.1rem 2.5rem;
   max-width: 960px;
   margin: 0 auto;
+}
 
-  display: flex;
-  justify-content: center;
-  align-items: center;
+@media (max-width: 640px) {
+  .app-main {
+    padding: 1.25rem 0.9rem 2rem;
+  }
 }
 </style>

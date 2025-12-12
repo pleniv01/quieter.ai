@@ -11,14 +11,32 @@
     <nav class="nav">
       <RouterLink to="/privacy" class="nav-link">Privacy</RouterLink>
       <RouterLink to="/dashboard" class="nav-link">Dashboard</RouterLink>
-      <RouterLink to="/signup" class="nav-link">Sign up</RouterLink>
-      <RouterLink to="/login" class="nav-link">Log in</RouterLink>
+      <template v-if="!accountId">
+        <RouterLink to="/signup" class="nav-link">Sign up</RouterLink>
+        <RouterLink to="/login" class="nav-link">Log in</RouterLink>
+      </template>
+      <template v-else>
+        <span class="nav-user">{{ email || 'Account' }}</span>
+        <button class="nav-link nav-logout" type="button" @click="logout">Log out</button>
+      </template>
     </nav>
   </header>
 </template>
 
 <script setup>
-import { RouterLink } from 'vue-router';
+import { computed } from 'vue';
+import { RouterLink, useRouter } from 'vue-router';
+
+const router = useRouter();
+
+const accountId = computed(() => localStorage.getItem('quieterAccountId') || '');
+const email = computed(() => localStorage.getItem('quieterEmail') || '');
+
+function logout() {
+  localStorage.removeItem('quieterAccountId');
+  localStorage.removeItem('quieterEmail');
+  router.push({ name: 'Home' });
+}
 </script>
 
 <style scoped>
@@ -29,7 +47,7 @@ import { RouterLink } from 'vue-router';
   backdrop-filter: blur(10px);
   background: rgba(255, 255, 255, 0.9);
   border-bottom: 1px solid var(--color-border);
-  padding: 0.9rem 1.5rem;
+  padding: 0.7rem 1rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -68,7 +86,7 @@ import { RouterLink } from 'vue-router';
 .nav {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
 }
 
 .nav-link {
@@ -82,5 +100,40 @@ import { RouterLink } from 'vue-router';
 .nav-link.router-link-active {
   background: var(--color-primary-soft);
   color: #111827;
+}
+
+.nav-user {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.nav-logout {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .header {
+    padding: 0.6rem 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .brand-text {
+    display: none;
+  }
+
+  .nav {
+    gap: 0.5rem;
+  }
+
+  .nav-link {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.45rem;
+  }
+
+  .nav-user {
+    display: none;
+  }
 }
 </style>
