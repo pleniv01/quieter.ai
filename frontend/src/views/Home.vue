@@ -10,8 +10,9 @@
         <span class="badge">Private by default · Easy to use · Works with your favorite GPT UIs*</span>
       </div>
       <p class="note">
-        You type to Quieter.ai. Quieter.ai talks to the model. The model never sees your real
-        account, device, or IP. Just a quiet middleman.
+        Today, you talk to Quieter.ai directly. Soon, a small browser extension will sit between
+        you and your usual GPT sites, quietly routing those conversations through Quieter so the
+        models see us, not you.
       </p>
     </div>
   </section>
