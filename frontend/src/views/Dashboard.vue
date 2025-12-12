@@ -16,6 +16,8 @@
       </p>
       <p class="meta">
         Signed in as <strong>{{ email || '(unknown email)' }}</strong><br />
+        <span v-if="profileName">Profile: <strong>{{ profileName }}</strong></span>
+        <span v-else>Profile: <strong>Default tenant</strong></span><br />
         Account ID: <code>{{ accountId }}</code>
       </p>
 
@@ -57,6 +59,8 @@ const email = ref(localStorage.getItem('quieterEmail') || '');
 const usage = ref(null);
 const loading = ref(false);
 const error = ref('');
+const profileName = ref('');
+const tenantCount = ref(0);
 
 async function loadUsage() {
   if (!accountId.value) return;
@@ -71,7 +75,10 @@ async function loadUsage() {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || `Failed to load usage (${res.status})`);
     }
-    usage.value = await res.json();
+    const data = await res.json();
+    usage.value = data;
+    profileName.value = data.primaryTenantName || '';
+    tenantCount.value = data.tenantCount || 0;
   } catch (e) {
     console.error(e);
     error.value = e.message || 'Failed to load usage.';

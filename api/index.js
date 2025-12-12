@@ -149,7 +149,7 @@ app.get('/me/usage', async (req, res) => {
     }
 
     const tenantsRes = await pool.query(
-      'SELECT id FROM tenants WHERE account_id = $1',
+      'SELECT id, name FROM tenants WHERE account_id = $1',
       [accountId]
     );
     const tenantIds = tenantsRes.rows.map(r => r.id);
@@ -158,6 +158,8 @@ app.get('/me/usage', async (req, res) => {
       return res.json({
         ok: true,
         accountId,
+        primaryTenantName: null,
+        tenantCount: 0,
         totalRequests: 0,
         totalLatencyMs: 0,
         totalTokens: 0,
@@ -171,10 +173,13 @@ app.get('/me/usage', async (req, res) => {
     );
 
     const row = usageRes.rows[0] || {};
+    const primaryTenant = tenantsRes.rows[0] || {};
 
     return res.json({
       ok: true,
       accountId,
+      primaryTenantName: primaryTenant.name || null,
+      tenantCount: tenantsRes.rows.length,
       totalRequests: Number(row.total_requests || 0),
       totalLatencyMs: Number(row.total_latency || 0),
       totalTokens: Number(row.total_tokens || 0),
