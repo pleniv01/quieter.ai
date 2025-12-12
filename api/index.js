@@ -19,6 +19,18 @@ const port = process.env.PORT || 8000;
 const hashApiKey = (key) =>
   crypto.createHash('sha256').update(key).digest('hex');
 
+// Small helper: count how many times a pattern would be replaced in a string.
+function countMatches(str, regex) {
+  if (!str) return 0;
+  let count = 0;
+  const re = new RegExp(regex.source, regex.flags.includes('g') ? regex.flags : regex.flags + 'g');
+  str.replace(re, () => {
+    count += 1;
+    return '';
+  });
+  return count;
+}
+
 // Railway Postgres connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -174,6 +186,28 @@ app.get('/me/usage', async (req, res) => {
   }
 });
 
+// Global aggregate usage for marketing / analytics
+app.get('/usage', async (req, res) => {
+  try {
+    const usageRes = await pool.query(
+      'SELECT COUNT(*) AS total_requests, COALESCE(SUM(latency_ms),0) AS total_latency, COALESCE(SUM(tokens),0) AS total_tokens, COALESCE(SUM(redactions_count),0) AS total_redactions FROM usage_logs'
+    );
+
+    const row = usageRes.rows[0] || {};
+
+    return res.json({
+      ok: true,
+      totalRequests: Number(row.total_requests || 0),
+      totalLatencyMs: Number(row.total_latency || 0),
+      totalTokens: Number(row.total_tokens || 0),
+      totalRedactions: Number(row.total_redactions || 0),
+    });
+  } catch (err) {
+    console.error('Global usage summary error', err);
+    return res.status(500).json({ ok: false, error: 'Could not load global usage' });
+  }
+});
+
 // Simple tenant API key auth middleware for /query
 async function tenantAuth(req, res, next) {
   try {
@@ -215,6 +249,11 @@ app.post('/proxy', async (req, res) => {
 
     // Basic redaction example (can be replaced with more robust scrubber):
     // Phase 1: names, SSN-style IDs, and emails
+    let redactions = 0;
+    redactions += countMatches(prompt, /\b[A-Z][a-z]+ [A-Z][a-z]+\b/);
+    redactions += countMatches(prompt, /\b\d{3}-\d{2}-\d{4}\b/);
+    redactions += countMatches(prompt, /[\w.-]+@[\w.-]+\.[A-Za-z]{2,}/);
+
     let scrubbedPrompt = prompt
       .replace(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g, '[redacted-name]')
       .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[redacted-ssn]')
@@ -222,16 +261,19 @@ app.post('/proxy', async (req, res) => {
 
     // Phase 2: crypto-related secrets and wallet addresses
     // Seed phrases / private keys / recovery phrases (very rough heuristic)
+    redactions += countMatches(scrubbedPrompt, /(seed phrase|recovery phrase|mnemonic phrase|private key|wallet seed)/i);
     scrubbedPrompt = scrubbedPrompt.replace(
       /(seed phrase|recovery phrase|mnemonic phrase|private key|wallet seed)/gi,
       '[redacted-crypto-secret]'
     );
     // Ethereum-style addresses
+    redactions += countMatches(scrubbedPrompt, /\b0x[a-fA-F0-9]{40}\b/);
     scrubbedPrompt = scrubbedPrompt.replace(
       /\b0x[a-fA-F0-9]{40}\b/g,
       '[redacted-eth-address]'
     );
     // Bitcoin-style base58 addresses (simple length-based heuristic)
+    redactions += countMatches(scrubbedPrompt, /\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b/);
     scrubbedPrompt = scrubbedPrompt.replace(
       /\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b/g,
       '[redacted-btc-address]'
@@ -239,11 +281,13 @@ app.post('/proxy', async (req, res) => {
 
     // Phase 3: financial account / card-like patterns
     // Common credit card-like sequences (very approximate)
+    redactions += countMatches(scrubbedPrompt, /\b(?:\d[ -]*?){13,16}\b/);
     scrubbedPrompt = scrubbedPrompt.replace(
       /\b(?:\d[ -]*?){13,16}\b/g,
       '[redacted-card-or-account]'
     );
     // Long digit runs that look like account or investment IDs
+    redactions += countMatches(scrubbedPrompt, /\b\d{10,20}\b/);
     scrubbedPrompt = scrubbedPrompt.replace(
       /\b\d{10,20}\b/g,
       '[redacted-account-number]'
@@ -251,11 +295,13 @@ app.post('/proxy', async (req, res) => {
 
     // Phase 4: medical diagnostic hints (very coarse for now)
     // ICD-10 style codes (e.g. F32.1, E11.9)
+    redactions += countMatches(scrubbedPrompt, /\b[ABDEGHJKLMNPRSTVWXYZ]\d{2}(?:\.\d{1,4})?\b/);
     scrubbedPrompt = scrubbedPrompt.replace(
       /\b[ABDEGHJKLMNPRSTVWXYZ]\d{2}(?:\.\d{1,4})?\b/g,
       '[redacted-medical-code]'
     );
     // Lines starting with Diagnosis:
+    redactions += countMatches(scrubbedPrompt, /(Diagnosis\s*:\s*)(.+)/i);
     scrubbedPrompt = scrubbedPrompt.replace(
       /(Diagnosis\s*:\s*)(.+)/gi,
       '$1[redacted-medical-diagnosis]'
@@ -317,37 +363,49 @@ app.post('/query', tenantAuth, async (req, res) => {
     }
 
     // Reuse the same scrubber logic as /proxy for now
+    let redactions = 0;
+    redactions += countMatches(prompt, /\b[A-Z][a-z]+ [A-Z][a-z]+\b/);
+    redactions += countMatches(prompt, /\b\d{3}-\d{2}-\d{4}\b/);
+    redactions += countMatches(prompt, /[\w.-]+@[\w.-]+\.[A-Za-z]{2,}/);
+
     let scrubbedPrompt = prompt
       .replace(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g, '[redacted-name]')
       .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[redacted-ssn]')
       .replace(/[\w.-]+@[\w.-]+\.[A-Za-z]{2,}/g, '[redacted-email]');
 
+    redactions += countMatches(scrubbedPrompt, /(seed phrase|recovery phrase|mnemonic phrase|private key|wallet seed)/i);
     scrubbedPrompt = scrubbedPrompt.replace(
       /(seed phrase|recovery phrase|mnemonic phrase|private key|wallet seed)/gi,
       '[redacted-crypto-secret]'
     );
+    redactions += countMatches(scrubbedPrompt, /\b0x[a-fA-F0-9]{40}\b/);
     scrubbedPrompt = scrubbedPrompt.replace(
       /\b0x[a-fA-F0-9]{40}\b/g,
       '[redacted-eth-address]'
     );
+    redactions += countMatches(scrubbedPrompt, /\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b/);
     scrubbedPrompt = scrubbedPrompt.replace(
       /\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b/g,
       '[redacted-btc-address]'
     );
 
+    redactions += countMatches(scrubbedPrompt, /\b(?:\d[ -]*?){13,16}\b/);
     scrubbedPrompt = scrubbedPrompt.replace(
       /\b(?:\d[ -]*?){13,16}\b/g,
       '[redacted-card-or-account]'
     );
+    redactions += countMatches(scrubbedPrompt, /\b\d{10,20}\b/);
     scrubbedPrompt = scrubbedPrompt.replace(
       /\b\d{10,20}\b/g,
       '[redacted-account-number]'
     );
 
+    redactions += countMatches(scrubbedPrompt, /\b[ABDEGHJKLMNPRSTVWXYZ]\d{2}(?:\.\d{1,4})?\b/);
     scrubbedPrompt = scrubbedPrompt.replace(
       /\b[ABDEGHJKLMNPRSTVWXYZ]\d{2}(?:\.\d{1,4})?\b/g,
       '[redacted-medical-code]'
     );
+    redactions += countMatches(scrubbedPrompt, /(Diagnosis\s*:\s*)(.+)/i);
     scrubbedPrompt = scrubbedPrompt.replace(
       /(Diagnosis\s*:\s*)(.+)/gi,
       '$1[redacted-medical-diagnosis]'
@@ -384,7 +442,7 @@ app.post('/query', tenantAuth, async (req, res) => {
     try {
       await pool.query(
         'INSERT INTO usage_logs (id, tenant_id, model, latency_ms, tokens, redactions_count, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-        [usageId, req.tenantId, modelName, latencyMs, approxTokens, 0, 'success']
+        [usageId, req.tenantId, modelName, latencyMs, approxTokens, redactions, 'success']
       );
     } catch (logErr) {
       console.error('Failed to log usage', logErr);

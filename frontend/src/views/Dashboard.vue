@@ -27,19 +27,19 @@
 
       <dl v-if="usage" class="stats">
         <div>
-          <dt>Total requests</dt>
+          <dt>Conversations shielded</dt>
           <dd>{{ usage.totalRequests }}</dd>
+        </div>
+        <div>
+          <dt>Approx. private tokens</dt>
+          <dd>{{ usage.totalTokens }}</dd>
         </div>
         <div>
           <dt>Total latency (ms)</dt>
           <dd>{{ usage.totalLatencyMs }}</dd>
         </div>
         <div>
-          <dt>Total tokens</dt>
-          <dd>{{ usage.totalTokens }}</dd>
-        </div>
-        <div>
-          <dt>Redactions (privacy wins)</dt>
+          <dt>Extra shield hits (redactions)</dt>
           <dd>{{ usage.totalRedactions }}</dd>
         </div>
       </dl>
