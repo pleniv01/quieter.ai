@@ -10,6 +10,7 @@
 
     <nav class="nav">
       <RouterLink to="/privacy" class="nav-link">Privacy</RouterLink>
+      <RouterLink to="/developers" class="nav-link">Developers</RouterLink>
       <RouterLink to="/dashboard" class="nav-link">Dashboard</RouterLink>
       <template v-if="!accountId">
         <RouterLink to="/signup" class="nav-link">Sign up</RouterLink>

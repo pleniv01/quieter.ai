@@ -3,15 +3,15 @@
     <div class="hero-card">
       <h1>Quieter.ai</h1>
       <p class="subtitle">
-        A privacy shield between your apps and GPT providers — they only ever see Quieter.ai,
-        never your users.
+        Use AI without handing your life story to every provider. Quieter.ai sits between you and
+        GPT-style models so they only ever see Quieter, not you.
       </p>
       <div class="badge-row">
-        <span class="badge">Identity shield · Multi-tenant proxy · SDK-ready</span>
+        <span class="badge">Private by default · Easy to use · Works with your favorite GPT UIs*</span>
       </div>
       <p class="note">
-        Your users talk to your app. Your app talks to Quieter.ai. Quieter.ai talks to the
-        model. The model never knows who your users are.
+        You type to Quieter.ai. Quieter.ai talks to the model. The model never sees your real
+        account, device, or IP. Just a quiet middleman.
       </p>
     </div>
   </section>
@@ -19,14 +19,19 @@
   <section class="who">
     <h2>Who Quieter.ai is for</h2>
     <ul>
-      <li>Wellness, journaling, and mental-health apps that promise true privacy</li>
-      <li>Education & student tools where identity and text must stay off provider logs</li>
-      <li>Enterprise internal tools that cannot expose employee conversations upstream</li>
-      <li>Consumer productivity and note-taking apps handling personal narratives</li>
-      <li>Agencies and studios building GPT apps for privacy-conscious clients</li>
+      <li>People who journal or vent to AI and don’t want those stories tied to their real identity</li>
+      <li>Students and researchers who want private drafts, questions, and experiments</li>
+      <li>Professionals who use AI for work notes or planning but can’t leak client details</li>
+      <li>Anyone who likes AI’s help but hates the feeling of being tracked and logged</li>
     </ul>
     <p class="note">
-      Learn how the shield works on the <RouterLink to="/privacy">Privacy</RouterLink> page.
+      Today, you sign up on this site and use Quieter.ai as your privacy shield. Soon, you’ll be
+      able to install a simple browser extension that quietly routes your GPT conversations
+      through Quieter for you.
+    </p>
+    <p class="note">
+      Curious how it works under the hood? See the <RouterLink to="/privacy">Privacy</RouterLink> page
+      or the <RouterLink to="/developers">Developers</RouterLink> page.
     </p>
   </section>
 </template>

@@ -5,6 +5,7 @@ import PrivacyPolicy from '../views/PrivacyPolicy.vue';
 import Signup from '../views/Signup.vue';
 import Login from '../views/Login.vue';
 import Dashboard from '../views/Dashboard.vue';
+import Developers from '../views/Developers.vue';
 
 const routes = [
   { path: '/', name: 'Home', component: Home },
@@ -13,6 +14,7 @@ const routes = [
   { path: '/signup', name: 'Signup', component: Signup },
   { path: '/login', name: 'Login', component: Login },
   { path: '/dashboard', name: 'Dashboard', component: Dashboard },
+  { path: '/developers', name: 'Developers', component: Developers },
 ];
 
 const router = createRouter({
