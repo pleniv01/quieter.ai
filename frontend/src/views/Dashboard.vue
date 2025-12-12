@@ -21,6 +21,18 @@
         Account ID: <code>{{ accountId }}</code>
       </p>
 
+      <div class="profile-card" v-if="usage">
+        <h2>Profile settings (read-only for now)</h2>
+        <p>
+          <strong>Profile name:</strong> {{ profileName || 'Default tenant' }}<br />
+          <strong>Total profiles for this account:</strong> {{ tenantCount }}
+        </p>
+        <p class="profile-note">
+          Quieter.ai currently uses a single profile per account by default. In the future, you’ll be
+          able to manage multiple profiles/workspaces and configure alerts per profile.
+        </p>
+      </div>
+
       <button type="button" @click="loadUsage" :disabled="loading">
         {{ loading ? 'Loading usage…' : 'Refresh usage' }}
       </button>
@@ -125,6 +137,29 @@ onMounted(() => {
   font-size: 0.9rem;
   color: var(--color-text-muted);
   margin-bottom: 1rem;
+}
+
+.profile-card {
+  margin-bottom: 1.25rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px dashed var(--color-border);
+  background: #f9fafb;
+  font-size: 0.9rem;
+}
+
+.profile-card h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.profile-note {
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
 }
 
 .dev-link {
