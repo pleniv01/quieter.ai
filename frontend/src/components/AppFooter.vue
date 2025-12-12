@@ -29,6 +29,20 @@ const year = new Date().getFullYear();
   max-width: 960px;
   margin: 0 auto;
   width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .footer {
+    padding: 0.85rem 1rem 1.2rem;
+    gap: 0.75rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .footer-links {
+    gap: 0.75rem;
+  }
 }
 
 .footer-left {

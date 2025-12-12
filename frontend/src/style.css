@@ -49,6 +49,7 @@ body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
   background: radial-gradient(circle at top left, #ffe58a 0%, #fff4cc 50%, #ffffff 100%);
   color: var(--color-text);
+  overflow-x: hidden;
 }
 
 #app {

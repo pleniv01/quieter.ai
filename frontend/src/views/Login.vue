@@ -43,7 +43,13 @@ onMounted(() => {
   const existingId = localStorage.getItem('quieterAccountId');
   const existingEmail = localStorage.getItem('quieterEmail');
   if (existingId) {
-    info.value = `You are already logged in as ${existingEmail || '(unknown email)'}.`;
+    // If you are already logged in, skip the login form and go to the dashboard.
+    router.push({ name: 'Dashboard' });
+    return;
+  }
+
+  if (existingEmail) {
+    info.value = `Use your Quieter.ai credentials to log in.`;
   }
 });
 
