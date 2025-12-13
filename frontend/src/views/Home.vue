@@ -24,6 +24,8 @@
       <li>Students and researchers who want private drafts, questions, and experiments</li>
       <li>Professionals who use AI for work notes or planning but can’t leak client details</li>
       <li>Anyone who likes AI’s help but hates the feeling of being tracked and logged</li>
+      <li>Anyone curious what their GPT habit actually costs — per query, per day, or per week —
+        instead of just paying a flat subscription and guessing</li>
     </ul>
     <p class="note">
       Today, you sign up on this site and use Quieter.ai as your privacy shield. Soon, you’ll be
@@ -31,10 +33,11 @@
       through Quieter for you.
     </p>
     <p class="note">
-      Curious how it works under the hood? See the <RouterLink to="/privacy">Privacy</RouterLink> page
-      or the <RouterLink to="/developers">Developers</RouterLink> page.
+      Along the way, Quieter gives you a rough sense of what each interaction costs — per query,
+      per day, or per week — and, over time, across different GPTs. You can see when a
+      "throwaway" question is quietly burning real money, and which sessions and tools are
+      actually worth the spend.
     </p>
-  </section>
 </template>
 
 <script setup>
