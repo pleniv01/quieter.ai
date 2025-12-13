@@ -52,6 +52,20 @@
         <div v-if="demoResponse" class="demo-result">
           <h3>Model reply (via Quieter)</h3>
           <p>{{ demoResponse }}</p>
+
+          <details class="demo-details" v-if="demoDirectView && demoQuieterView">
+            <summary>Show what the provider would see with and without Quieter</summary>
+            <div class="demo-views">
+              <div>
+                <h4>If you sent this directly to a GPT site…</h4>
+                <pre><code>{{ formatView(demoDirectView) }}</code></pre>
+              </div>
+              <div>
+                <h4>What Quieter actually forwards…</h4>
+                <pre><code>{{ formatView(demoQuieterView) }}</code></pre>
+              </div>
+            </div>
+          </details>
         </div>
       </form>
     </section>
@@ -117,10 +131,29 @@ const demoPrompt = ref('');
 const demoResponse = ref('');
 const demoError = ref('');
 const demoLoading = ref(false);
+const demoDirectView = ref(null);
+const demoQuieterView = ref(null);
+
+function formatView(v) {
+  if (!v) return '';
+  const lines = [];
+  if (v.ip) lines.push(`IP: ${v.ip}`);
+  if (v.headers && v.headers.length) {
+    lines.push('Headers:');
+    v.headers.forEach((h) => lines.push(`  - ${h}`));
+  }
+  if (v.body != null) {
+    lines.push('Body:');
+    lines.push(String(v.body));
+  }
+  return lines.join('\n');
+}
 
 async function runDemo() {
   demoError.value = '';
   demoResponse.value = '';
+  demoDirectView.value = null;
+  demoQuieterView.value = null;
   const prompt = demoPrompt.value.trim();
   if (!prompt) {
     demoError.value = 'Please enter something to send.';
@@ -142,6 +175,8 @@ async function runDemo() {
     }
 
     demoResponse.value = data.modelResponse || '(No text response returned.)';
+    demoDirectView.value = data.demoDirectView || null;
+    demoQuieterView.value = data.demoQuieterView || null;
   } catch (e) {
     console.error(e);
     demoError.value = 'Could not reach the Quieter.ai demo right now.';
@@ -244,6 +279,32 @@ h1 {
 .demo-result h3 {
   margin: 0 0 0.35rem;
   font-size: 0.95rem;
+}
+
+.demo-details {
+  margin-top: 0.75rem;
+}
+
+.demo-views {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.demo-views pre {
+  margin: 0;
+  padding: 0.6rem 0.7rem;
+  background: #0f172a;
+  color: #e5e7eb;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  overflow-x: auto;
+}
+
+.demo-views h4 {
+  margin: 0 0 0.35rem;
+  font-size: 0.85rem;
 }
 
 .panel-highlight {

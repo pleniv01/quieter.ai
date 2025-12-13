@@ -379,6 +379,25 @@ app.post('/proxy', async (req, res) => {
     const textPart = message.content?.find?.(p => p.type === 'text');
     const modelText = textPart?.text || '';
 
+    // For demo purposes, show a rough "before vs after" view of what a provider might see.
+    const demoDirectView = {
+      ip: '203.0.113.42 (your device or app)',
+      headers: [
+        'User-Agent: Your browser or client',
+        'Cookie: session=abc123; other-tracking=...',
+        'Referer: https://quieter.ai/privacy',
+      ],
+      body: prompt,
+    };
+
+    const demoQuieterView = {
+      ip: 'Quieter.ai infrastructure',
+      headers: [
+        'Minimal JSON POST, no browser cookies or app auth tokens forwarded',
+      ],
+      body: scrubbedPrompt,
+    };
+
     return res.json({
       ok: true,
       prompt: scrubbedPrompt,
@@ -386,6 +405,8 @@ app.post('/proxy', async (req, res) => {
       model: modelName,
       latencyMs,
       modelResponse: modelText,
+      demoDirectView,
+      demoQuieterView,
     });
   } catch (err) {
     console.error('Proxy error', err);

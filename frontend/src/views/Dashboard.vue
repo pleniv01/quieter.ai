@@ -33,6 +33,33 @@
         </p>
       </div>
 
+      <div v-if="usage && usage.totalRequests === 0" class="getting-started">
+        <h2>Getting started with your Quieter shield</h2>
+        <p>
+          You’ve created an account, but haven’t sent any traffic through Quieter.ai yet. To start
+          seeing "conversations shielded" here, you can:
+        </p>
+        <ul>
+          <li>
+            Use the browser extension’s test prompt (paste your <code>qtr_...</code> key in the
+            popup and send a sample question).
+          </li>
+          <li>
+            Or run a quick <code>curl</code> call:
+            <code>
+              curl -X POST https://quieteraiapp-production.up.railway.app/query \
+                -H "Authorization: Bearer {{QUIETER_API_KEY}}" \
+                -H "Content-Type: application/json" \
+                -d '{"prompt":"Say hello from Quieter.ai","metadata":{"source":"dashboard-getting-started"}}'
+            </code>
+          </li>
+        </ul>
+        <p class="getting-started-note">
+          After you send a few test requests, refresh this page to see your protected usage numbers
+          update.
+        </p>
+      </div>
+
       <button type="button" @click="loadUsage" :disabled="loading">
         {{ loading ? 'Loading usage…' : 'Refresh usage' }}
       </button>
@@ -191,6 +218,38 @@ onMounted(async () => {
 
 .profile-note {
   margin-top: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.getting-started {
+  margin-bottom: 1.1rem;
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  border: 1px dashed var(--color-border);
+  background: #fefce8;
+  font-size: 0.9rem;
+}
+
+.getting-started h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.getting-started ul {
+  margin: 0.4rem 0 0.6rem;
+  padding-left: 1.2rem;
+}
+
+.getting-started code {
+  font-size: 0.8rem;
+}
+
+.getting-started-note {
+  margin-top: 0.35rem;
   font-size: 0.8rem;
   color: var(--color-text-muted);
 }
