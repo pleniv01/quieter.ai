@@ -12,7 +12,7 @@
     <div v-else class="card">
       <p class="dev-link">
         For implementation details, see the
-        <a href="/docs/how-to-use-quieter-api-key" target="_blank" rel="noopener">API key guide</a>.
+        <RouterLink to="/docs/how-to-use-quieter-api-key">API key guide</RouterLink>.
       </p>
       <p class="meta">
         Signed in as <strong>{{ email || '(unknown email)' }}</strong><br />
@@ -63,6 +63,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { RouterLink } from 'vue-router';
 
 const apiBase = import.meta.env.VITE_API_BASE_URL;
 

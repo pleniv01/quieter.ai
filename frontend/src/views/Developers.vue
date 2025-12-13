@@ -24,7 +24,7 @@
   }'</code></pre>
 
       <p class="note">
-        For full details, see the <a href="/docs/how-to-use-quieter-api-key" target="_blank" rel="noopener">API key guide</a>
+        For full details, see the <RouterLink to="/docs/how-to-use-quieter-api-key">API key guide</RouterLink>
         and the architecture document in the docs folder.
       </p>
     </div>
@@ -32,6 +32,7 @@
 </template>
 
 <script setup>
+import { RouterLink } from 'vue-router';
 </script>
 
 <style scoped>
