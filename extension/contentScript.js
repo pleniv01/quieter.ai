@@ -2,6 +2,8 @@
 // using the stored Quieter API key. This does NOT interfere with Claude's own behavior;
 // it just lets Quieter log usage so it appears on the Dashboard.
 
+console.log('[Quieter] Claude content script loaded');
+
 const STORAGE_KEY = 'quieterApiKey';
 const API_BASE = 'https://quieteraiapp-production.up.railway.app';
 
