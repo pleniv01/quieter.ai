@@ -221,6 +221,13 @@ app.get('/me/usage', async (req, res) => {
     const row = usageRes.rows[0] || {};
     const primaryTenant = tenantsRes.rows[0] || {};
 
+    // Aggregate balances across all tenants for this account
+    const balancesRes = await pool.query(
+      'SELECT plan, COALESCE(SUM(credits_remaining),0) AS total_credits FROM balances WHERE tenant_id = ANY($1::text[]) GROUP BY plan ORDER BY total_credits DESC LIMIT 1',
+      [tenantIds]
+    );
+    const balanceRow = balancesRes.rows[0] || null;
+
     return res.json({
       ok: true,
       accountId,
@@ -232,6 +239,8 @@ app.get('/me/usage', async (req, res) => {
       totalRedactions: Number(row.total_redactions || 0),
       providerCostCents: Number(row.provider_cost_cents || 0),
       billedCents: Number(row.billed_cents || 0),
+      plan: balanceRow ? balanceRow.plan : null,
+      creditsRemainingCents: balanceRow ? Number(balanceRow.total_credits || 0) : 0,
     });
   } catch (err) {
     console.error('Usage summary error', err);

@@ -60,11 +60,45 @@
         </p>
       </div>
 
+      <div v-if="usage" class="billing-card">
+        <h2>Billing & plan</h2>
+        <p>
+          <strong>Plan:</strong>
+          <span v-if="usage.plan">{{ usage.plan }}</span>
+          <span v-else>dev</span>
+          <br />
+          <strong>Credits remaining:</strong>
+          <span>${{ (usage.creditsRemainingCents / 100).toFixed(2) }}</span>
+        </p>
+        <p class="billing-note">
+          This is a rough view of your prepaid balance. As you send requests through your
+          Quieter.ai API key, the billed amount is deducted here.
+        </p>
+      </div>
+
+      <div v-if="report" class="report-card">
+        <h2>Usage report (current)</h2>
+        <p>
+          <strong>Conversations shielded:</strong> {{ report.totalRequests }}<br />
+          <strong>Approx. private tokens:</strong> {{ report.totalTokens }}<br />
+          <strong>Redactions applied:</strong> {{ report.totalRedactions }}<br />
+          <strong>Estimated provider cost:</strong>
+          ${{ (report.providerCostCents / 100).toFixed(2) }}<br />
+          <strong>Your billed amount:</strong>
+          ${{ (report.billedCents / 100).toFixed(2) }}
+        </p>
+      </div>
+
       <button type="button" @click="loadUsage" :disabled="loading">
         {{ loading ? 'Loading usage…' : 'Refresh usage' }}
       </button>
 
+      <button type="button" class="secondary" @click="loadReport" :disabled="loadingReport">
+        {{ loadingReport ? 'Loading report…' : 'Refresh usage report' }}
+      </button>
+
       <p v-if="error" class="error">{{ error }}</p>
+      <p v-if="reportError" class="error">{{ reportError }}</p>
 
       <dl v-if="usage" class="stats">
         <div>
@@ -120,6 +154,10 @@ const error = ref('');
 const profileName = ref('');
 const tenantCount = ref(0);
 
+const report = ref(null);
+const loadingReport = ref(false);
+const reportError = ref('');
+
 async function fetchMe() {
   if (!accountId.value) return false;
   try {
@@ -169,6 +207,28 @@ async function loadUsage() {
     error.value = e.message || 'Failed to load usage.';
   } finally {
     loading.value = false;
+  }
+}
+
+async function loadReport() {
+  if (!accountId.value) return;
+  reportError.value = '';
+  loadingReport.value = true;
+  try {
+    const url = new URL(`${apiBase}/me/report`);
+    url.searchParams.set('accountId', accountId.value);
+    const res = await fetch(url.toString());
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `Failed to load report (${res.status})`);
+    }
+    const data = await res.json();
+    report.value = data.report || null;
+  } catch (e) {
+    console.error(e);
+    reportError.value = e.message || 'Failed to load report.';
+  } finally {
+    loadingReport.value = false;
   }
 }
 
