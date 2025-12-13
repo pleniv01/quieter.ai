@@ -11,6 +11,14 @@
     "storage"
   ],
   "host_permissions": [
-    "https://quieteraiapp-production.up.railway.app/*"
+    "https://quieteraiapp-production.up.railway.app/*",
+    "https://claude.ai/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://claude.ai/*"],
+      "js": ["contentScript.js"],
+      "run_at": "document_idle"
+    }
   ]
 }
