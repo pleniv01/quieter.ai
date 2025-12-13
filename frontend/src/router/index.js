@@ -7,6 +7,8 @@ import Login from '../views/Login.vue';
 import Dashboard from '../views/Dashboard.vue';
 import Developers from '../views/Developers.vue';
 import ApiKeyGuide from '../views/ApiKeyGuide.vue';
+import AdminLogin from '../views/AdminLogin.vue';
+import AdminModels from '../views/AdminModels.vue';
 
 const routes = [
   { path: '/', name: 'Home', component: Home },
@@ -17,6 +19,8 @@ const routes = [
   { path: '/dashboard', name: 'Dashboard', component: Dashboard },
   { path: '/developers', name: 'Developers', component: Developers },
   { path: '/docs/how-to-use-quieter-api-key', name: 'ApiKeyGuide', component: ApiKeyGuide },
+  { path: '/admin', name: 'AdminLogin', component: AdminLogin },
+  { path: '/admin/models', name: 'AdminModels', component: AdminModels },
 ];
 
 const router = createRouter({

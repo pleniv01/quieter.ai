@@ -83,6 +83,24 @@
           <dt>Extra shield hits (redactions)</dt>
           <dd>{{ usage.totalRedactions }}</dd>
         </div>
+        <div>
+          <dt>Estimated provider cost</dt>
+          <dd>
+            <span v-if="usage.providerCostCents !== undefined">
+              ${{ (usage.providerCostCents / 100).toFixed(2) }}
+            </span>
+            <span v-else>—</span>
+          </dd>
+        </div>
+        <div>
+          <dt>Your billed amount</dt>
+          <dd>
+            <span v-if="usage.billedCents !== undefined">
+              ${{ (usage.billedCents / 100).toFixed(2) }}
+            </span>
+            <span v-else>—</span>
+          </dd>
+        </div>
       </dl>
     </div>
   </section>

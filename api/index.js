@@ -5,6 +5,7 @@ import pkg from 'pg';
 import Anthropic from '@anthropic-ai/sdk';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
+import nodemailer from 'nodemailer';
 dotenv.config();
 
 const { Pool } = pkg;
@@ -12,6 +13,14 @@ const { Pool } = pkg;
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
+
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || null;
+
+// Simple mail transport; if SMTP_URL is not set we just log instead of sending.
+let mailTransport = null;
+if (process.env.SMTP_URL) {
+  mailTransport = nodemailer.createTransport(process.env.SMTP_URL);
+}
 
 const app = express();
 const port = process.env.PORT || 8000;
@@ -199,11 +208,13 @@ app.get('/me/usage', async (req, res) => {
         totalLatencyMs: 0,
         totalTokens: 0,
         totalRedactions: 0,
+        providerCostCents: 0,
+        billedCents: 0,
       });
     }
 
     const usageRes = await pool.query(
-      'SELECT COUNT(*) AS total_requests, COALESCE(SUM(latency_ms),0) AS total_latency, COALESCE(SUM(tokens),0) AS total_tokens, COALESCE(SUM(redactions_count),0) AS total_redactions FROM usage_logs WHERE tenant_id = ANY($1::text[])',
+      'SELECT COUNT(*) AS total_requests, COALESCE(SUM(latency_ms),0) AS total_latency, COALESCE(SUM(total_tokens),0) AS total_tokens, COALESCE(SUM(redactions_count),0) AS total_redactions, COALESCE(SUM(provider_cost_cents),0) AS provider_cost_cents, COALESCE(SUM(billed_cents),0) AS billed_cents FROM usage_logs WHERE tenant_id = ANY($1::text[])',
       [tenantIds]
     );
 
@@ -219,10 +230,75 @@ app.get('/me/usage', async (req, res) => {
       totalLatencyMs: Number(row.total_latency || 0),
       totalTokens: Number(row.total_tokens || 0),
       totalRedactions: Number(row.total_redactions || 0),
+      providerCostCents: Number(row.provider_cost_cents || 0),
+      billedCents: Number(row.billed_cents || 0),
     });
   } catch (err) {
     console.error('Usage summary error', err);
     return res.status(500).json({ ok: false, error: 'Could not load usage' });
+  }
+});
+
+// Simple report builder for an account (used by /me/report and email)
+async function buildAccountReport(accountId) {
+  const accountRes = await pool.query('SELECT email FROM accounts WHERE id = $1 LIMIT 1', [
+    accountId,
+  ]);
+  if (!accountRes.rows.length) {
+    throw new Error('Account not found');
+  }
+  const email = accountRes.rows[0].email;
+
+  const tenantsRes = await pool.query(
+    'SELECT id, name FROM tenants WHERE account_id = $1',
+    [accountId]
+  );
+  const tenantIds = tenantsRes.rows.map(r => r.id);
+
+  if (!tenantIds.length) {
+    return {
+      accountId,
+      email,
+      tenantCount: 0,
+      primaryTenantName: null,
+      totalRequests: 0,
+      totalTokens: 0,
+      totalRedactions: 0,
+      providerCostCents: 0,
+      billedCents: 0,
+    };
+  }
+
+  const usageRes = await pool.query(
+    'SELECT COUNT(*) AS total_requests, COALESCE(SUM(total_tokens),0) AS total_tokens, COALESCE(SUM(redactions_count),0) AS total_redactions, COALESCE(SUM(provider_cost_cents),0) AS provider_cost_cents, COALESCE(SUM(billed_cents),0) AS billed_cents FROM usage_logs WHERE tenant_id = ANY($1::text[])',
+    [tenantIds]
+  );
+  const row = usageRes.rows[0] || {};
+
+  return {
+    accountId,
+    email,
+    tenantCount: tenantsRes.rows.length,
+    primaryTenantName: tenantsRes.rows[0]?.name || null,
+    totalRequests: Number(row.total_requests || 0),
+    totalTokens: Number(row.total_tokens || 0),
+    totalRedactions: Number(row.total_redactions || 0),
+    providerCostCents: Number(row.provider_cost_cents || 0),
+    billedCents: Number(row.billed_cents || 0),
+  };
+}
+
+app.get('/me/report', async (req, res) => {
+  try {
+    const accountId = req.query.accountId;
+    if (!accountId) {
+      return res.status(400).json({ ok: false, error: 'accountId is required' });
+    }
+    const report = await buildAccountReport(accountId);
+    return res.json({ ok: true, report });
+  } catch (err) {
+    console.error('Report error', err);
+    return res.status(500).json({ ok: false, error: 'Could not build report' });
   }
 });
 
@@ -428,6 +504,44 @@ app.post('/proxy', async (req, res) => {
   }
 });
 
+// Helper: resolve a model based on requested name or "auto" using model_configs
+async function resolveModelConfig(requestedModel) {
+  // Explicit model id: look it up
+  if (requestedModel && requestedModel !== 'auto') {
+    const res = await pool.query(
+      'SELECT * FROM model_configs WHERE id = $1 AND enabled = TRUE LIMIT 1',
+      [requestedModel]
+    );
+    if (!res.rows.length) {
+      throw new Error('Requested model is not available');
+    }
+    return res.rows[0];
+  }
+
+  // Auto: choose cheapest enabled model, favoring higher quality if prices tie
+  const res = await pool.query(
+    `SELECT * FROM model_configs
+     WHERE enabled = TRUE
+     ORDER BY price_input_per_1k_cs ASC, quality_score DESC NULLS LAST
+     LIMIT 1`
+  );
+  if (!res.rows.length) {
+    throw new Error('No models are configured');
+  }
+  return res.rows[0];
+}
+
+function computeCostsFromUsage(modelConfig, inputTokens, outputTokens) {
+  const inTok = inputTokens || 0;
+  const outTok = outputTokens || 0;
+  const providerCost =
+    Math.round((inTok / 1000) * modelConfig.price_input_per_1k_cs) +
+    Math.round((outTok / 1000) * modelConfig.price_output_per_1k_cs);
+  // For now we bill provider cost 1:1 to user; markup can be added later.
+  const billed = providerCost;
+  return { providerCostCents: providerCost, billedCents: billed };
+}
+
 // Tenant-aware /query endpoint (same pipeline as /proxy, but requires API key and logs usage)
 app.post('/query', tenantAuth, async (req, res) => {
   try {
@@ -490,7 +604,8 @@ app.post('/query', tenantAuth, async (req, res) => {
       ? { ...metadata, user: undefined, email: undefined, session_id: undefined }
       : undefined;
 
-    const modelName = model || 'claude-3-5-haiku-latest';
+    const modelConfig = await resolveModelConfig(model || 'auto');
+    const modelName = modelConfig.api_model_name;
 
     const start = Date.now();
     const message = await anthropic.messages.create({
@@ -509,27 +624,64 @@ app.post('/query', tenantAuth, async (req, res) => {
     const textPart = message.content?.find?.(p => p.type === 'text');
     const modelText = textPart?.text || '';
 
-    // Very rough token estimate: length / 4 (can be improved later)
-    const approxTokens = Math.round(scrubbedPrompt.length / 4);
+    // Use provider usage if available, otherwise fall back to rough estimate
+    const inputTokens = message.usage?.input_tokens ?? Math.round(scrubbedPrompt.length / 4);
+    const outputTokens = message.usage?.output_tokens ?? Math.round(modelText.length / 4);
+    const totalTokens = inputTokens + outputTokens;
 
-    // Log basic usage for this tenant
+    const { providerCostCents, billedCents } = computeCostsFromUsage(
+      modelConfig,
+      inputTokens,
+      outputTokens
+    );
+
     const usageId = crypto.randomUUID();
     try {
       await pool.query(
-        'INSERT INTO usage_logs (id, tenant_id, model, latency_ms, tokens, redactions_count, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-        [usageId, req.tenantId, modelName, latencyMs, approxTokens, redactions, 'success']
+        `INSERT INTO usage_logs
+          (id, tenant_id, model, latency_ms, tokens, redactions_count, status,
+           model_config_id, input_tokens, output_tokens, total_tokens,
+           provider_cost_cents, billed_cents)
+         VALUES ($1, $2, $3, $4, $5, $6, $7,
+                 $8, $9, $10, $11, $12, $13)`,
+        [
+          usageId,
+          req.tenantId,
+          modelConfig.id,
+          latencyMs,
+          totalTokens,
+          redactions,
+          'success',
+          modelConfig.id,
+          inputTokens,
+          outputTokens,
+          totalTokens,
+          providerCostCents,
+          billedCents,
+        ]
+      );
+
+      // Decrement credits from this tenant's balance if present
+      await pool.query(
+        'UPDATE balances SET credits_remaining = COALESCE(credits_remaining,0) - $1, updated_at = NOW() WHERE tenant_id = $2',
+        [billedCents, req.tenantId]
       );
     } catch (logErr) {
-      console.error('Failed to log usage', logErr);
+      console.error('Failed to log usage or update balance', logErr);
     }
 
     return res.json({
       ok: true,
       prompt: scrubbedPrompt,
       metadata: scrubbedMetadata,
-      model: modelName,
+      model: modelConfig.id,
       latencyMs,
       modelResponse: modelText,
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      providerCostCents,
+      billedCents,
     });
   } catch (err) {
     console.error('Query error', err);
@@ -547,6 +699,202 @@ app.post('/query', tenantAuth, async (req, res) => {
     }
 
     return res.status(500).json({ ok: false, error: 'Query failed' });
+  }
+});
+
+// --- Admin helpers and endpoints ---
+
+function requireAdmin(req, res, next) {
+  if (!ADMIN_TOKEN) {
+    return res.status(503).json({ ok: false, error: 'Admin is not configured' });
+  }
+  const auth = req.headers['authorization'] || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice('Bearer '.length).trim() : null;
+  if (!token || token !== ADMIN_TOKEN) {
+    return res.status(401).json({ ok: false, error: 'Admin auth required' });
+  }
+  next();
+}
+
+// Minimal admin login: verify provided token matches ADMIN_TOKEN, purely for UI convenience.
+app.post('/admin/login', (req, res) => {
+  const { token } = req.body || {};
+  if (!ADMIN_TOKEN) {
+    return res.status(503).json({ ok: false, error: 'Admin is not configured' });
+  }
+  if (!token || token !== ADMIN_TOKEN) {
+    return res.status(401).json({ ok: false, error: 'Invalid admin token' });
+  }
+  return res.json({ ok: true });
+});
+
+// List models
+app.get('/admin/models', requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM model_configs ORDER BY id');
+    return res.json({ ok: true, models: result.rows });
+  } catch (err) {
+    console.error('Admin models list error', err);
+    return res.status(500).json({ ok: false, error: 'Could not load models' });
+  }
+});
+
+// Create model
+app.post('/admin/models', requireAdmin, async (req, res) => {
+  try {
+    const {
+      id,
+      provider,
+      display_name,
+      api_model_name,
+      tier = 'cheap',
+      quality_score = null,
+      price_input_per_1k_cs,
+      price_output_per_1k_cs,
+      enabled = true,
+    } = req.body || {};
+
+    if (!id || !provider || !display_name || !api_model_name || price_input_per_1k_cs == null || price_output_per_1k_cs == null) {
+      return res.status(400).json({ ok: false, error: 'Missing required fields' });
+    }
+
+    await pool.query(
+      `INSERT INTO model_configs
+        (id, provider, display_name, api_model_name, tier, quality_score,
+         price_input_per_1k_cs, price_output_per_1k_cs, enabled)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [
+        id,
+        provider,
+        display_name,
+        api_model_name,
+        tier,
+        quality_score,
+        price_input_per_1k_cs,
+        price_output_per_1k_cs,
+        enabled,
+      ]
+    );
+
+    return res.status(201).json({ ok: true });
+  } catch (err) {
+    console.error('Admin create model error', err);
+    return res.status(500).json({ ok: false, error: 'Could not create model' });
+  }
+});
+
+// Update model
+app.patch('/admin/models/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = req.params.id;
+    const fields = [
+      'provider',
+      'display_name',
+      'api_model_name',
+      'tier',
+      'quality_score',
+      'price_input_per_1k_cs',
+      'price_output_per_1k_cs',
+      'enabled',
+    ];
+    const updates = [];
+    const values = [];
+    let idx = 1;
+    for (const field of fields) {
+      if (req.body && Object.prototype.hasOwnProperty.call(req.body, field)) {
+        updates.push(`${field} = $${idx}`);
+        values.push(req.body[field]);
+        idx += 1;
+      }
+    }
+    if (!updates.length) {
+      return res.status(400).json({ ok: false, error: 'No fields to update' });
+    }
+    values.push(id);
+    const sql = `UPDATE model_configs SET ${updates.join(', ')}, updated_at = NOW() WHERE id = $${idx}`;
+    await pool.query(sql, values);
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Admin update model error', err);
+    return res.status(500).json({ ok: false, error: 'Could not update model' });
+  }
+});
+
+// Admin: simple account lookup by email
+app.get('/admin/accounts', requireAdmin, async (req, res) => {
+  try {
+    const email = (req.query.email || '').toString().toLowerCase().trim();
+    if (!email) {
+      return res.status(400).json({ ok: false, error: 'email query param is required' });
+    }
+    const accountRes = await pool.query(
+      'SELECT id, email, created_at FROM accounts WHERE email = $1 LIMIT 1',
+      [email]
+    );
+    if (!accountRes.rows.length) {
+      return res.status(404).json({ ok: false, error: 'Account not found' });
+    }
+    const account = accountRes.rows[0];
+    const tenantsRes = await pool.query(
+      'SELECT id, name, plan FROM tenants WHERE account_id = $1',
+      [account.id]
+    );
+    const balancesRes = await pool.query(
+      'SELECT tenant_id, credits_remaining, plan FROM balances WHERE tenant_id = ANY($1::text[])',
+      [tenantsRes.rows.map(t => t.id)]
+    );
+    return res.json({
+      ok: true,
+      account,
+      tenants: tenantsRes.rows,
+      balances: balancesRes.rows,
+    });
+  } catch (err) {
+    console.error('Admin accounts lookup error', err);
+    return res.status(500).json({ ok: false, error: 'Could not lookup account' });
+  }
+});
+
+// Admin: send a one-off usage report email to a given account
+app.post('/admin/send-report', requireAdmin, async (req, res) => {
+  try {
+    const { accountId } = req.body || {};
+    if (!accountId) {
+      return res.status(400).json({ ok: false, error: 'accountId is required' });
+    }
+    const report = await buildAccountReport(accountId);
+
+    if (!mailTransport) {
+      console.log('[report-email-dev]', report);
+      return res.json({ ok: true, delivered: false, message: 'SMTP_URL not set; logged report instead' });
+    }
+
+    const textLines = [
+      `Hi,`,
+      '',
+      `Here is your latest Quieter.ai privacy usage report:`,
+      '',
+      `Conversations shielded: ${report.totalRequests}`,
+      `Approximate private tokens: ${report.totalTokens}`,
+      `Redactions applied: ${report.totalRedactions}`,
+      '',
+      `Estimated provider cost: $${(report.providerCostCents / 100).toFixed(2)}`,
+      `Your billed amount: $${(report.billedCents / 100).toFixed(2)}`,
+      '',
+      `Thanks for using Quieter.ai.`,
+    ];
+
+    await mailTransport.sendMail({
+      to: report.email,
+      from: process.env.REPORTS_FROM_EMAIL || 'reports@quieter.ai',
+      subject: 'Your Quieter.ai privacy usage report',
+      text: textLines.join('\n'),
+    });
+
+    return res.json({ ok: true, delivered: true });
+  } catch (err) {
+    console.error('Admin send report error', err);
+    return res.status(500).json({ ok: false, error: 'Could not send report' });
   }
 });
 
