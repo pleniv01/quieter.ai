@@ -401,32 +401,32 @@ h1 {
   white-space: pre-wrap;
 }
 
-.hdr-label {
+:deep(.hdr-label) {
   font-weight: 600;
 }
 
-.hdr-section {
+:deep(.hdr-section) {
   color: #9ca3af;
   font-weight: 600;
 }
 
-.hdr-ip {
+:deep(.hdr-ip) {
   color: #f97316; /* orange / network identity */
 }
 
-.hdr-fp {
+:deep(.hdr-fp) {
   color: #38bdf8; /* fingerprinting headers */
 }
 
-.hdr-context {
+:deep(.hdr-context) {
   color: #a855f7; /* context / referrer */
 }
 
-.hdr-other {
+:deep(.hdr-other) {
   color: #9ca3af;
 }
 
-.hdr-value {
+:deep(.hdr-value) {
   color: #e5e7eb;
 }
 
