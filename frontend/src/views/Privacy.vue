@@ -31,6 +31,32 @@
     </section>
 
     <section class="panel">
+      <h2>Try Quieter.ai with a quick demo</h2>
+      <p class="clarify">
+        Type something below and we’ll send it through Quieter.ai’s demo proxy. For this demo,
+        we don’t use your account or API key — it’s just a quick way to see the shield in action.
+      </p>
+
+      <form class="demo" @submit.prevent="runDemo">
+        <label>
+          Prompt
+          <textarea v-model="demoPrompt" rows="3"></textarea>
+        </label>
+
+        <button type="submit" :disabled="demoLoading">
+          {{ demoLoading ? 'Talking to Quieter…' : 'Ask via Quieter demo' }}
+        </button>
+
+        <p v-if="demoError" class="demo-error">{{ demoError }}</p>
+
+        <div v-if="demoResponse" class="demo-result">
+          <h3>Model reply (via Quieter)</h3>
+          <p>{{ demoResponse }}</p>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel">
       <h2>What Quieter.ai removes or replaces</h2>
 
       <p class="clarify">
@@ -83,6 +109,46 @@
 </template>
 
 <script setup>
+import { ref } from 'vue';
+
+const apiBase = import.meta.env.VITE_API_BASE_URL;
+
+const demoPrompt = ref('');
+const demoResponse = ref('');
+const demoError = ref('');
+const demoLoading = ref(false);
+
+async function runDemo() {
+  demoError.value = '';
+  demoResponse.value = '';
+  const prompt = demoPrompt.value.trim();
+  if (!prompt) {
+    demoError.value = 'Please enter something to send.';
+    return;
+  }
+
+  demoLoading.value = true;
+  try {
+    const res = await fetch(`${apiBase}/proxy`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, metadata: { source: 'privacy-demo' } }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      demoError.value = data.error || `Demo failed (${res.status})`;
+      return;
+    }
+
+    demoResponse.value = data.modelResponse || '(No text response returned.)';
+  } catch (e) {
+    console.error(e);
+    demoError.value = 'Could not reach the Quieter.ai demo right now.';
+  } finally {
+    demoLoading.value = false;
+  }
+}
 </script>
 
 <style scoped>
@@ -128,6 +194,56 @@ h1 {
   border-radius: 14px;
   border: 1px solid var(--color-border);
   background: #ffffff;
+}
+
+.demo {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.demo textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  padding: 0.5rem 0.6rem;
+  font-size: 0.9rem;
+}
+
+.demo button {
+  align-self: flex-start;
+  border-radius: 999px;
+  padding: 0.4rem 1.1rem;
+  border: none;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+  color: #111827;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.demo button:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.demo-error {
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+
+.demo-result {
+  margin-top: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  background: #f9fafb;
+  font-size: 0.9rem;
+}
+
+.demo-result h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
 }
 
 .panel-highlight {
