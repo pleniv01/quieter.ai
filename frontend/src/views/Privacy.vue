@@ -53,16 +53,16 @@
           <h3>Model reply (via Quieter)</h3>
           <p>{{ demoResponse }}</p>
 
-          <details class="demo-details" v-if="demoDirectView && demoQuieterView">
-            <summary>Show what the provider would see with and without Quieter</summary>
+          <details class="demo-details" v-if="demoDirectView && demoQuieterView" open>
+            <summary>Hide header details</summary>
             <div class="demo-views">
               <div>
                 <h4>If you sent this directly to a GPT site…</h4>
-                <pre><code>{{ formatView(demoDirectView) }}</code></pre>
+                <pre v-html="formatViewHtml(demoDirectView)"></pre>
               </div>
               <div>
                 <h4>What Quieter actually forwards…</h4>
-                <pre><code>{{ formatView(demoQuieterView) }}</code></pre>
+                <pre v-html="formatViewHtml(demoQuieterView, true)"></pre>
               </div>
             </div>
 
@@ -177,18 +177,49 @@ const demoLoading = ref(false);
 const demoDirectView = ref(null);
 const demoQuieterView = ref(null);
 
-function formatView(v) {
-  if (!v) return '';
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatViewHtml(view, isQuieter = false) {
+  if (!view) return '';
   const lines = [];
-  if (v.ip) lines.push(`IP: ${v.ip}`);
-  if (v.headers && v.headers.length) {
-    lines.push('Headers:');
-    v.headers.forEach((h) => lines.push(`  - ${h}`));
+
+  if (view.ip) {
+    const ipLabel = '<span class="hdr-label hdr-ip">IP:</span>';
+    const ipVal = `<span class="hdr-value">${escapeHtml(view.ip)}</span>`;
+    lines.push(`${ipLabel} ${ipVal}`);
   }
-  if (v.body != null) {
-    lines.push('Body:');
-    lines.push(String(v.body));
+
+  if (view.headers && view.headers.length) {
+    lines.push('<span class="hdr-section">Headers:</span>');
+    for (const h of view.headers) {
+      const [rawName, ...rest] = String(h).split(':');
+      const name = (rawName || '').trim();
+      const value = (rest.join(':') || '').trim();
+      const lower = name.toLowerCase();
+      let cls = 'hdr-other';
+      if (['x-forwarded-for', 'x-real-ip'].includes(lower)) cls = 'hdr-ip';
+      else if (['user-agent', 'sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform', 'accept-language', 'dnt'].includes(lower)) cls = 'hdr-fp';
+      else if (['referer', 'origin'].includes(lower)) cls = 'hdr-context';
+      const nameHtml = `<span class="hdr-label ${cls}">${escapeHtml(name)}:</span>`;
+      const valueHtml = `<span class="hdr-value">${escapeHtml(value)}</span>`;
+      lines.push(`  ${nameHtml} ${valueHtml}`);
+    }
   }
+
+  if (view.body != null) {
+    lines.push('<span class="hdr-section">Body:</span>');
+    const bodyStr = typeof view.body === 'string' ? view.body : JSON.stringify(view.body, null, 2);
+    const escapedBody = escapeHtml(bodyStr).replace(/\n/g, '\n');
+    lines.push(escapedBody);
+  }
+
   return lines.join('\n');
 }
 
@@ -343,6 +374,36 @@ h1 {
   border-radius: 6px;
   font-size: 0.8rem;
   overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.hdr-label {
+  font-weight: 600;
+}
+
+.hdr-section {
+  color: #9ca3af;
+  font-weight: 600;
+}
+
+.hdr-ip {
+  color: #f97316; /* orange / network identity */
+}
+
+.hdr-fp {
+  color: #38bdf8; /* fingerprinting headers */
+}
+
+.hdr-context {
+  color: #a855f7; /* context / referrer */
+}
+
+.hdr-other {
+  color: #9ca3af;
+}
+
+.hdr-value {
+  color: #e5e7eb;
 }
 
 .demo-views h4 {
