@@ -9,6 +9,7 @@ import Developers from '../views/Developers.vue';
 import ApiKeyGuide from '../views/ApiKeyGuide.vue';
 import AdminLogin from '../views/AdminLogin.vue';
 import AdminModels from '../views/AdminModels.vue';
+import AdminAccounts from '../views/AdminAccounts.vue';
 
 const routes = [
   { path: '/', name: 'Home', component: Home },
@@ -21,6 +22,7 @@ const routes = [
   { path: '/docs/how-to-use-quieter-api-key', name: 'ApiKeyGuide', component: ApiKeyGuide },
   { path: '/admin', name: 'AdminLogin', component: AdminLogin },
   { path: '/admin/models', name: 'AdminModels', component: AdminModels },
+  { path: '/admin/accounts', name: 'AdminAccounts', component: AdminAccounts },
 ];
 
 const router = createRouter({

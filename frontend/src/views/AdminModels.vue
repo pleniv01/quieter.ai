@@ -8,6 +8,7 @@
 
     <div class="actions">
       <RouterLink to="/admin">Change admin token</RouterLink>
+      <RouterLink to="/admin/accounts">Accounts</RouterLink>
       <button type="button" @click="load" :disabled="loading">
         {{ loading ? 'Loading…' : 'Refresh' }}
       </button>

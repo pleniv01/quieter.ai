@@ -34,13 +34,19 @@ const accountId = computed(() => localStorage.getItem('quieterAccountId') || '')
 const email = computed(() => localStorage.getItem('quieterEmail') || '');
 
 function clearLocalAccount() {
-  localStorage.removeItem('quieterAccountId');
-  localStorage.removeItem('quieterEmail');
+  try {
+    localStorage.removeItem('quieterAccountId');
+    localStorage.removeItem('quieterEmail');
+    localStorage.removeItem('quieterAdminToken');
+  } catch (e) {
+    console.error('Failed to clear local account state', e);
+  }
 }
 
 function logout() {
   clearLocalAccount();
-  router.push({ name: 'Home' });
+  // Use a hard redirect to guarantee state is cleared even if the router is unhappy.
+  window.location.href = '/';
 }
 </script>
 
