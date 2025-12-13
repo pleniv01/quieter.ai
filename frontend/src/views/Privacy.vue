@@ -65,6 +65,49 @@
                 <pre><code>{{ formatView(demoQuieterView) }}</code></pre>
               </div>
             </div>
+
+            <div class="demo-explain">
+              <div>
+                <h4>Why the "direct" view is personally linkable</h4>
+                <ul>
+                  <li>
+                    <strong>IP and forwarding headers</strong> (for example, <code>x-forwarded-for</code>,
+                    <code>x-real-ip</code>) tie activity to your network/ISP and make it easy to follow one
+                    person or household over time.
+                  </li>
+                  <li>
+                    <strong>Browser fingerprint headers</strong> like <code>user-agent</code>,
+                    <code>sec-ch-ua</code>, <code>sec-ch-ua-platform</code>, and
+                    <code>accept-language</code> describe your exact browser, OS, and language — together they
+                    form a stable fingerprint that can be recognized across sessions.
+                  </li>
+                  <li>
+                    <strong>Context headers</strong> such as <code>referer</code> and <code>origin</code>
+                    say where you were browsing when you sent the prompt, which helps a provider build a
+                    profile of your habits over time.
+                  </li>
+                </ul>
+              </div>
+
+              <div>
+                <h4>What Quieter changes in the "via Quieter" view</h4>
+                <ul>
+                  <li>
+                    The provider sees <strong>Quieter.ai's IPs and client fingerprint</strong>, not your
+                    browser's IP / user-agent / device hints.
+                  </li>
+                  <li>
+                    Only a <strong>minimal JSON body</strong> with the (optionally scrubbed) prompt is
+                    forwarded — no browser cookies, no site-specific auth tokens, no referrer from your
+                    personal browsing.
+                  </li>
+                  <li>
+                    Over time, the provider can build a profile of "a Quieter.ai tenant" but not easily tie
+                    those prompts back to your individual network, device, or login.
+                  </li>
+                </ul>
+              </div>
+            </div>
           </details>
         </div>
       </form>
@@ -305,6 +348,25 @@ h1 {
 .demo-views h4 {
   margin: 0 0 0.35rem;
   font-size: 0.85rem;
+}
+
+.demo-explain {
+  margin-top: 0.75rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: 0.75rem;
+  font-size: 0.85rem;
+}
+
+.demo-explain ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--color-text-muted);
+}
+
+.demo-explain h4 {
+  margin: 0;
+  font-size: 0.9rem;
 }
 
 .panel-highlight {
