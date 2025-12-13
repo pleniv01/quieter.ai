@@ -38,7 +38,10 @@ async function sendToQuieter(promptText) {
 }
 
 function getInputElement() {
-  // Claude frequently uses either a textarea or a contenteditable div for the input box.
+  // Prefer Claude's main chat input if present
+  const claudeInput = document.querySelector('[data-testid="chat-input"].tiptap.ProseMirror[contenteditable="true"]');
+  if (claudeInput) return claudeInput;
+  // Fallbacks
   const textarea = document.querySelector('textarea');
   if (textarea) return textarea;
   const editable = document.querySelector('[contenteditable="true"]');
