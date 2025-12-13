@@ -69,6 +69,15 @@
             <div class="demo-explain">
               <div>
                 <h4>Why the "direct" view is personally linkable</h4>
+                <p>
+                  If you send this directly to a GPT provider, they get <em>all</em> of the above on every
+                  call, plus whatever cookies or auth headers their JavaScript has set and any per-user
+                  identifiers embedded in URLs or request bodies.
+                </p>
+                <p class="demo-quote">
+                  “The browser with UA = X, on IP = Y, at hours Z, sending these topics, is the same user,”
+                  and they can correlate that with any future login or purchase.
+                </p>
                 <ul>
                   <li>
                     <strong>IP and forwarding headers</strong> (for example, <code>x-forwarded-for</code>,
@@ -86,11 +95,22 @@
                     say where you were browsing when you sent the prompt, which helps a provider build a
                     profile of your habits over time.
                   </li>
+                  <li>
+                    The “personal” part isn’t your name in a header, it’s
+                    <strong>linkability</strong> (tying many prompts back to the same origin) and
+                    <strong>context leakage</strong> (which site, which browser, which OS, which region,
+                    which habits).
+                  </li>
                 </ul>
               </div>
 
               <div>
                 <h4>What Quieter changes in the "via Quieter" view</h4>
+                <p>
+                  With Quieter in the middle, the provider sees Quieter’s network and client instead of yours,
+                  plus only the scrubbed JSON body we construct. We terminate per-user network signals on our
+                  side and originate a clean, account-level connection to the model.
+                </p>
                 <ul>
                   <li>
                     The provider sees <strong>Quieter.ai's IPs and client fingerprint</strong>, not your
@@ -104,6 +124,10 @@
                   <li>
                     Over time, the provider can build a profile of "a Quieter.ai tenant" but not easily tie
                     those prompts back to your individual network, device, or login.
+                  </li>
+                  <li>
+                    Your browser’s fingerprint and IP stay between you and Quieter — they don’t become part of
+                    the model provider’s training or logging corpus.
                   </li>
                 </ul>
               </div>
@@ -428,6 +452,13 @@ h1 {
 .demo-explain h4 {
   margin: 0;
   font-size: 0.9rem;
+}
+
+.demo-quote {
+  margin: 0.4rem 0;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--color-text-muted);
 }
 
 .panel-highlight {
