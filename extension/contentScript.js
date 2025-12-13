@@ -35,27 +35,51 @@ async function sendToQuieter(promptText) {
   }
 }
 
-function attachListeners() {
-  // Claude UI changes frequently; this is a heuristic that looks for a textarea
-  // in the main chat area and hooks the Enter key.
+function getInputElement() {
+  // Claude frequently uses either a textarea or a contenteditable div for the input box.
   const textarea = document.querySelector('textarea');
-  if (!textarea) return;
+  if (textarea) return textarea;
+  const editable = document.querySelector('[contenteditable="true"]');
+  return editable || null;
+}
 
-  if (textarea.dataset.quieterAttached === '1') return;
-  textarea.dataset.quieterAttached = '1';
+function readInputValue(el) {
+  if (!el) return '';
+  if (el.tagName === 'TEXTAREA') return el.value || '';
+  return el.innerText || el.textContent || '';
+}
 
-  textarea.addEventListener('keydown', (e) => {
+function attachListeners() {
+  const inputEl = getInputElement();
+  if (!inputEl) return;
+
+  if (inputEl.dataset.quieterAttached === '1') return;
+  inputEl.dataset.quieterAttached = '1';
+
+  // Mirror on Enter in the input element
+  inputEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      const text = textarea.value.trim();
+      const text = readInputValue(inputEl).trim();
       if (text) {
-        // Fire-and-forget mirror; do not block Claude's own handler
         sendToQuieter(text);
       }
     }
   });
+
+  // Also try to hook the primary send button, if present
+  const sendButton = document.querySelector('button[type="submit"], button[aria-label*="Send" i]');
+  if (sendButton && !sendButton.dataset.quieterAttached) {
+    sendButton.dataset.quieterAttached = '1';
+    sendButton.addEventListener('click', () => {
+      const text = readInputValue(getInputElement()).trim();
+      if (text) {
+        sendToQuieter(text);
+      }
+    });
+  }
 }
 
-// Try to attach on load and when the DOM changes a bit
+// Try to attach on load and as the DOM changes
 attachListeners();
 const observer = new MutationObserver(() => {
   attachListeners();
