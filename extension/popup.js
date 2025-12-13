@@ -5,6 +5,9 @@ const apiKeyInput = document.getElementById('apiKey');
 const saveButton = document.getElementById('save');
 const testButton = document.getElementById('test');
 const statusEl = document.getElementById('status');
+const promptInput = document.getElementById('prompt');
+const sendButton = document.getElementById('send');
+const responseEl = document.getElementById('response');
 
 function setStatus(message, kind) {
   statusEl.textContent = message;
@@ -66,4 +69,52 @@ async function testConnection() {
 
 testButton.addEventListener('click', () => {
   testConnection();
+});
+
+async function sendTestPrompt() {
+  setStatus('', '');
+  responseEl.textContent = '';
+
+  const key = apiKeyInput.value.trim();
+  const prompt = (promptInput.value || '').trim();
+
+  if (!key) {
+    setStatus('Please enter and save your API key first.', 'err');
+    return;
+  }
+  if (!prompt) {
+    setStatus('Enter a prompt to send through Quieter.', 'err');
+    return;
+  }
+
+  try {
+    setStatus('Sending prompt via Quieter...', '');
+    const res = await fetch(API_BASE + '/query', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + key,
+      },
+      body: JSON.stringify({
+        prompt,
+        metadata: { source: 'browser-extension-test' },
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      setStatus('Quieter request failed: ' + (data.error || res.status), 'err');
+      return;
+    }
+
+    responseEl.textContent = data.modelResponse || '(no text response)';
+    setStatus('Prompt sent through Quieter successfully.', 'ok');
+  } catch (e) {
+    console.error(e);
+    setStatus('Error sending prompt via Quieter.', 'err');
+  }
+}
+
+sendButton.addEventListener('click', () => {
+  sendTestPrompt();
 });
