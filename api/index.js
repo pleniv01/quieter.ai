@@ -380,22 +380,36 @@ app.post('/proxy', async (req, res) => {
     const modelText = textPart?.text || '';
 
     // For demo purposes, show a rough "before vs after" view of what a provider might see.
+    // Left side: what your browser actually sent to Quieter (similar to sending directly to a GPT site).
+    const rawHeaders = req.headers || {};
+    const clientHeaders = Object.entries(rawHeaders)
+      .filter(([k]) => !['authorization', 'cookie'].includes(k.toLowerCase()))
+      .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`);
+
     const demoDirectView = {
-      ip: '203.0.113.42 (your device or app)',
-      headers: [
-        'User-Agent: Your browser or client',
-        'Cookie: session=abc123; other-tracking=...',
-        'Referer: https://quieter.ai/privacy',
-      ],
+      ip: req.ip || 'your client IP (as seen by Quieter)',
+      headers: clientHeaders,
       body: prompt,
     };
 
+    // Right side: what Quieter forwards to the provider.
     const demoQuieterView = {
       ip: 'Quieter.ai infrastructure',
       headers: [
-        'Minimal JSON POST, no browser cookies or app auth tokens forwarded',
+        'Authorization: Bearer <Quieter’s provider key>',
+        'Content-Type: application/json',
       ],
-      body: scrubbedPrompt,
+      body: {
+        model: modelName,
+        max_tokens: 256,
+        temperature: 0.3,
+        messages: [
+          {
+            role: 'user',
+            content: `You are a helpful assistant behind a privacy shield. Respond to the following scrubbed prompt:\n\n${scrubbedPrompt}`,
+          },
+        ],
+      },
     };
 
     return res.json({
