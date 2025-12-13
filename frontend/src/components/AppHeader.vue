@@ -33,9 +33,13 @@ const router = useRouter();
 const accountId = computed(() => localStorage.getItem('quieterAccountId') || '');
 const email = computed(() => localStorage.getItem('quieterEmail') || '');
 
-function logout() {
+function clearLocalAccount() {
   localStorage.removeItem('quieterAccountId');
   localStorage.removeItem('quieterEmail');
+}
+
+function logout() {
+  clearLocalAccount();
   router.push({ name: 'Home' });
 }
 </script>

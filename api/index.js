@@ -140,6 +140,41 @@ app.post('/auth/login', async (req, res) => {
   }
 });
 
+// Basic account/profile info. For now this is keyed by accountId from the client.
+app.get('/me', async (req, res) => {
+  try {
+    const accountId = req.query.accountId;
+    if (!accountId) {
+      return res.status(400).json({ ok: false, error: 'accountId is required' });
+    }
+
+    const accountRes = await pool.query(
+      'SELECT email FROM accounts WHERE id = $1 LIMIT 1',
+      [accountId]
+    );
+    if (!accountRes.rows.length) {
+      return res.status(404).json({ ok: false, error: 'Account not found' });
+    }
+
+    const tenantsRes = await pool.query(
+      'SELECT id, name FROM tenants WHERE account_id = $1',
+      [accountId]
+    );
+    const primaryTenant = tenantsRes.rows[0] || {};
+
+    return res.json({
+      ok: true,
+      accountId,
+      email: accountRes.rows[0].email,
+      primaryTenantName: primaryTenant.name || null,
+      tenantCount: tenantsRes.rows.length,
+    });
+  } catch (err) {
+    console.error('Me endpoint error', err);
+    return res.status(500).json({ ok: false, error: 'Could not load account info' });
+  }
+});
+
 // Usage summary for an account (simple aggregation by accountId)
 app.get('/me/usage', async (req, res) => {
   try {

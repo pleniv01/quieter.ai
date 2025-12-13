@@ -74,6 +74,33 @@ const error = ref('');
 const profileName = ref('');
 const tenantCount = ref(0);
 
+async function fetchMe() {
+  if (!accountId.value) return false;
+  try {
+    const url = new URL(`${apiBase}/me`);
+    url.searchParams.set('accountId', accountId.value);
+    const res = await fetch(url.toString());
+    if (!res.ok) {
+      // If the account is not found, clear local state so the user is sent back to login.
+      if (res.status === 404) {
+        localStorage.removeItem('quieterAccountId');
+        localStorage.removeItem('quieterEmail');
+        accountId.value = '';
+        email.value = '';
+      }
+      return false;
+    }
+    const data = await res.json();
+    email.value = data.email || email.value;
+    profileName.value = data.primaryTenantName || '';
+    tenantCount.value = data.tenantCount || 0;
+    return true;
+  } catch (e) {
+    console.error(e);
+    return false;
+  }
+}
+
 async function loadUsage() {
   if (!accountId.value) return;
   error.value = '';
@@ -99,10 +126,15 @@ async function loadUsage() {
   }
 }
 
-onMounted(() => {
-  if (accountId.value) {
-    loadUsage();
+onMounted(async () => {
+  if (!accountId.value) return;
+  const ok = await fetchMe();
+  if (!ok) {
+    // If we can't validate the stored account, send user to login.
+    window.location.href = '/login';
+    return;
   }
+  await loadUsage();
 });
 </script>
 
