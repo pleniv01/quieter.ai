@@ -15,7 +15,15 @@ async function getApiKey() {
   });
 }
 
+let lastSentText = '';
+
 async function sendToQuieter(promptText) {
+  const text = (promptText || '').trim();
+  if (!text) return;
+  // Avoid spamming the same prompt repeatedly if handlers fire twice
+  if (text === lastSentText) return;
+  lastSentText = text;
+
   try {
     const key = await getApiKey();
     if (!key) return;
@@ -27,7 +35,7 @@ async function sendToQuieter(promptText) {
         Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({
-        prompt: promptText,
+        prompt: text,
         metadata: { source: 'claude-web-mirror' },
       }),
     });
@@ -64,22 +72,19 @@ function attachListeners() {
   // Mirror on Enter in the input element
   inputEl.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      const text = readInputValue(inputEl).trim();
-      if (text) {
-        sendToQuieter(text);
-      }
+      const text = readInputValue(inputEl);
+      sendToQuieter(text);
     }
   });
 
   // Also try to hook the primary send button, if present
-  const sendButton = document.querySelector('button[type="submit"], button[aria-label*="Send" i]');
+  const sendButton = document.querySelector('button[aria-label="Send message"]');
   if (sendButton && !sendButton.dataset.quieterAttached) {
     sendButton.dataset.quieterAttached = '1';
     sendButton.addEventListener('click', () => {
-      const text = readInputValue(getInputElement()).trim();
-      if (text) {
-        sendToQuieter(text);
-      }
+      const currentInput = getInputElement();
+      const text = readInputValue(currentInput);
+      sendToQuieter(text);
     });
   }
 }
