@@ -14,6 +14,10 @@
         models. A small browser extension can sit between you and your usual GPT sites,
         quietly routing those conversations through Quieter so the models see Quieter, not you.
       </p>
+      <div class="cta-row">
+        <RouterLink to="/signup" class="cta cta-primary">Use hosted Quieter.ai</RouterLink>
+        <RouterLink to="/developers" class="cta cta-secondary">Self-host & open source</RouterLink>
+      </div>
     </div>
   </section>
 
@@ -91,6 +95,36 @@ h1 {
   font-weight: 600;
 }
 
+.cta-row {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 1.1rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.cta-primary {
+  background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+  color: #111827;
+}
+
+.cta-secondary {
+  background: #ffffff;
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+}
+
 .note {
   font-size: 0.9rem;
   line-height: 1.5;
@@ -122,6 +156,11 @@ h1 {
 @media (max-width: 640px) {
   .hero-card {
     padding: 1.75rem 1.4rem;
+  }
+
+  .cta-row {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   h1 {
