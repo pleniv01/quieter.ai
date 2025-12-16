@@ -1,38 +1,76 @@
 <template>
   <section class="dev">
-    <h1>Quieter.ai for developers</h1>
+    <h1>Open source and self-hosting</h1>
     <p class="lead">
-      If you build apps or tools, you can talk to Quieter.ai with a simple HTTP call. We sit in
-      front of your GPT provider and handle identity shielding, accounting, and usage analytics.
+      Quieter.ai is an open-source reference implementation of a privacy shield for GPT-style
+      models. It is designed to be run on your own infrastructure, with your own database and
+      model API keys.
     </p>
 
     <div class="card">
-      <h2>Basic flow</h2>
-      <ol>
-        <li>Sign up on the main site and get your <code>qtr_...</code> API key.</li>
-        <li>Send prompts to <code>POST /query</code> with <code>Authorization: Bearer &lt;key&gt;</code>.</li>
-        <li>Receive the model response, plus latency and usage stats.</li>
-      </ol>
+      <h2>Project model</h2>
+      <p>
+        Quieter is a small, focused codebase that shows how to put a privacy-aware proxy in front
+        of large language models. The reference implementation is published under the
+        <strong>Apache 2.0</strong> license so you can review, adapt, and deploy it for your own
+        use.
+      </p>
+      <p>
+        Each deployment of Quieter is expected to run its own infrastructure: a web process, a
+        database, and one or more LLM provider API keys. The maintainer of this project does not
+        operate a shared proxy or relay for third-party deployments.
+      </p>
+    </div>
 
-      <h3>Example (curl)</h3>
-      <pre><code>curl -X POST https://quieteraiapp-production.up.railway.app/query \ 
-  -H "Authorization: Bearer {{QUIETER_API_KEY}}" \ 
-  -H "Content-Type: application/json" \ 
-  -d '{
-    "prompt": "Explain what Quieter.ai does.",
-    "metadata": { "source": "curl-dev-example" }
-  }'</code></pre>
+    <div class="card">
+      <h2>Self-hosting</h2>
+      <p>
+        The recommended way to use Quieter is to self-host it for yourself or your organisation.
+        You keep control of:
+      </p>
+      <ul>
+        <li>Where the service runs (for example, your own cloud account)</li>
+        <li>Which database it uses and how long logs are retained</li>
+        <li>Which model providers and API keys are configured</li>
+      </ul>
+      <p>
+        The repository includes a minimal reference configuration and notes in
+        <code>SELF_HOSTING.md</code>. You are free to integrate Quieter into your own stack or
+        deployment model.
+      </p>
+    </div>
 
-      <p class="note">
-        For full details, see the <RouterLink to="/docs/how-to-use-quieter-api-key">API key guide</RouterLink>
-        and the architecture document in the docs folder.
+    <div class="card">
+      <h2>Hosted instances</h2>
+      <p>
+        You may choose to run a hosted instance of Quieter for yourself or for a team. Any such
+        instance is responsible for its own reliability, security, and data handling. This project
+        does not describe or imply a shared, centrally operated service for other parties.
+      </p>
+      <p>
+        If you expose a hosted instance to others, we recommend being clear about where it runs,
+        which model providers it uses, and how logs are handled.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Source code and contact</h2>
+      <p>
+        The source is available on GitHub at
+        <a href="https://github.com/pleniv01/quieter.ai" target="_blank" rel="noopener noreferrer">
+          github.com/pleniv01/quieter.ai
+        </a>.
+      </p>
+      <p>
+        For questions about the codebase, licensing, or responsible use, you can reach the
+        maintainer at <a href="mailto:quieter@quieter.ai">quieter@quieter.ai</a>.
       </p>
     </div>
   </section>
 </template>
 
 <script setup>
-import { RouterLink } from 'vue-router';
+// No router links are required on this page at the moment.
 </script>
 
 <style scoped>
