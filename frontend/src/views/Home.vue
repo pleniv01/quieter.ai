@@ -11,7 +11,7 @@
       </div>
       <p class="note">
         Today, you can use a Quieter.ai instance as a privacy layer between you and GPT-style
-        models. Soon, a small browser extension can sit between you and your usual GPT sites,
+        models. A small browser extension can sit between you and your usual GPT sites,
         quietly routing those conversations through Quieter so the models see Quieter, not you.
       </p>
     </div>
@@ -60,15 +60,18 @@ import { RouterLink } from 'vue-router';
   border: 1px solid rgba(0, 0, 0, 0.03);
   max-width: 720px;
   border-top: 4px solid var(--color-primary);
+  font-family: var(--font-sans, system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif);
 }
 
 h1 {
-  font-size: 2.2rem;
+  font-size: 2.1rem;
   margin-bottom: 0.75rem;
+  letter-spacing: -0.01em;
 }
 
 .subtitle {
-  font-size: 1.05rem;
+  font-size: 1rem;
+  line-height: 1.5;
   color: var(--color-text-muted);
   margin-bottom: 1.25rem;
 }
@@ -90,6 +93,7 @@ h1 {
 
 .note {
   font-size: 0.9rem;
+  line-height: 1.5;
   color: var(--color-text-muted);
 }
 

@@ -61,6 +61,54 @@ QUIETER_TELEMETRY_ENABLED=false
 - `QUIETER_TELEMETRY_ENABLED` controls optional, anonymized, instance-level telemetry.
 - When absent or set to anything other than `true`, **no telemetry code runs**.
 
+## Quickstart: Reference Self-Hosted Deployment
+
+This is a minimal example of how you might self-host Quieter.ai using the reference stack.
+
+1. **Clone the repo**
+   - `git clone https://github.com/pleniv01/quieter.ai.git`
+   - `cd quieter.ai`
+
+2. **Provision infrastructure** (example)
+   - Backend + Postgres on Railway
+   - Frontend on Netlify
+   - LLM provider account (e.g. Anthropic)
+
+3. **Configure backend (Railway)**
+   - Service root: `api/`
+   - Set environment variables:
+     - `DATABASE_URL` — Railway Postgres URL
+     - `ANTHROPIC_API_KEY` — your Anthropic key
+     - `ADMIN_TOKEN` — random string for admin API access
+     - `QUIETER_TELEMETRY_ENABLED=false` (or omit for no telemetry)
+   - Set start command (if needed): `cd api && node index.js`
+
+4. **Run database migrations**
+   - From your local machine (with `DATABASE_URL` pointing at Railway):
+     - `cd api`
+     - `npm install`
+     - `npm run migrate`
+
+5. **Configure frontend (Netlify)**
+   - Build directory: `frontend/`
+   - Build command: `cd frontend && npm install && npm run build`
+   - Publish directory: `frontend/dist`
+   - Environment variables:
+     - `VITE_API_BASE_URL` pointing at your deployed backend API URL
+
+6. **Create your first account and tenant**
+   - Visit the deployed frontend
+   - Sign up for an account
+   - Use the dashboard to obtain an API key and see usage
+
+7. **(Optional) Enable anonymous instance telemetry**
+   - On the backend, set `QUIETER_TELEMETRY_ENABLED=true`
+   - Use `GET /admin/telemetry-debug` with `Authorization: Bearer <ADMIN_TOKEN>` to verify the telemetry configuration and counters
+
+For more detail, see the main README and the `frontend/src/views` docs pages.
+
+---
+
 ## Telemetry
 
 By default, Quieter **does not** send any telemetry to the project maintainers.
