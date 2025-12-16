@@ -6,6 +6,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
+import { initTelemetry, recordTelemetryRequest, getTelemetryDebugSnapshot } from './telemetry.js';
+
 dotenv.config();
 
 const { Pool } = pkg;
@@ -24,6 +26,9 @@ if (process.env.SMTP_URL) {
 
 const app = express();
 const port = process.env.PORT || 8000;
+
+// Initialize anonymous, instance-level telemetry if explicitly enabled.
+initTelemetry();
 
 const hashApiKey = (key) =>
   crypto.createHash('sha256').update(key).digest('hex');
@@ -368,6 +373,11 @@ app.post('/proxy', async (req, res) => {
   try {
     const { prompt, metadata, model } = req.body || {};
 
+    // Instance-level, anonymous telemetry: count requests only when
+    // QUIETER_TELEMETRY_ENABLED=true. This never inspects prompt content
+    // or any identifiers.
+    recordTelemetryRequest('proxy');
+
     if (!prompt || typeof prompt !== 'string') {
       return res.status(400).json({ ok: false, error: 'Missing or invalid "prompt"' });
     }
@@ -555,6 +565,11 @@ function computeCostsFromUsage(modelConfig, inputTokens, outputTokens) {
 app.post('/query', tenantAuth, async (req, res) => {
   try {
     const { prompt, metadata, model } = req.body || {};
+
+    // Instance-level, anonymous telemetry: count requests only when
+    // QUIETER_TELEMETRY_ENABLED=true. This never inspects prompt content
+    // or any identifiers.
+    recordTelemetryRequest('query');
 
     if (!prompt || typeof prompt !== 'string') {
       return res.status(400).json({ ok: false, error: 'Missing or invalid "prompt"' });
@@ -904,6 +919,17 @@ app.post('/admin/send-report', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Admin send report error', err);
     return res.status(500).json({ ok: false, error: 'Could not send report' });
+  }
+});
+
+// Admin: inspect current telemetry state and counters (safe, aggregate-only)
+app.get('/admin/telemetry-debug', requireAdmin, (req, res) => {
+  try {
+    const snapshot = getTelemetryDebugSnapshot();
+    return res.json({ ok: true, telemetry: snapshot });
+  } catch (err) {
+    console.error('Admin telemetry debug error', err);
+    return res.status(500).json({ ok: false, error: 'Could not load telemetry debug info' });
   }
 });
 

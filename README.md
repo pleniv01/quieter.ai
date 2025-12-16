@@ -38,6 +38,48 @@ Quieter.ai is a **privacy-enhancing measure**, not a silver bullet.
 
 ---
 
+## Telemetry
+
+Quieter.ai does **not** collect centralized usage data by default.
+
+Each deployment operates independently, and all usage metrics are local to that instance unless the operator explicitly opts in to sharing anonymous telemetry.
+
+### Optional, Opt-In Telemetry
+
+Operators may choose to enable anonymized, instance-level telemetry to help support the project and improve future development.
+
+When enabled:
+
+- Telemetry is **off by default** and requires explicit configuration
+- Telemetry is **instance-level only**, not per user or per tenant
+- Telemetry is **anonymous**
+- Telemetry is sent on a coarse interval (e.g. daily or weekly)
+- Telemetry failures never affect request handling
+
+Telemetry **never includes**:
+
+- Prompt content (raw or transformed)
+- User identifiers
+- Tenant identifiers
+- API keys or secrets
+- IP addresses or request metadata
+
+Typical telemetry data may include:
+
+- A randomly generated instance identifier
+- Quieter version
+- Aggregate request counts
+- Whether optional privacy features are enabled
+
+Telemetry can be enabled or disabled at any time by the operator and is fully inspectable in the source code.
+
+### Philosophy
+
+Quieter is designed as privacy-enhancing infrastructure. Telemetry exists only to help sustain the project and is implemented conservatively, transparently, and with operator control.
+
+If you do not explicitly enable telemetry, **nothing is collected or transmitted**.
+
+
 ## Threat Model (High-Level)
 
 **In scope:**

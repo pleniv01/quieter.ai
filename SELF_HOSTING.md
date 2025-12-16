@@ -1,6 +1,6 @@
 # Self-Hosting Quieter.ai
 
-Quieter.ai is designed to be **self-hosted**.
+Quieter is designed as a multitenant-capable system. Even in single-user deployments, tenant boundaries are preserved for isolation and future flexibility.
 
 This document explains, at a high level, what that means and what is required.
 
@@ -55,3 +55,38 @@ Typical required variables include:
 ```env
 ANTHROPIC_API_KEY=your_key_here
 DATABASE_URL=postgresql://user:pass@host:5432/quieter
+QUIETER_TELEMETRY_ENABLED=false
+```
+
+- `QUIETER_TELEMETRY_ENABLED` controls optional, anonymized, instance-level telemetry.
+- When absent or set to anything other than `true`, **no telemetry code runs**.
+
+## Telemetry
+
+By default, Quieter **does not** send any telemetry to the project maintainers.
+
+Telemetry is strictly opt-in and operates only at the **instance level**:
+
+- No per-user, per-tenant, or per-request identifiers
+- No prompt content (raw or hashed)
+- No metadata fields
+- No headers
+- No IP addresses
+- No API keys
+- No tenant or user identifiers
+
+When enabled (`QUIETER_TELEMETRY_ENABLED=true` on the backend API service), the instance sends at most, on a coarse interval (about once per day):
+
+- A randomly generated, anonymous `instance_id` (UUID stored locally next to the API code)
+- The Quieter version
+- Which optional scrub layers are enabled (e.g. basic PII, crypto, financial, medical)
+- Aggregate request counts for this process (e.g. total requests, `/proxy` requests, `/query` requests) over the interval
+
+No per-request timestamps or payload details are collected or transmitted.
+
+Operators can always:
+
+- Inspect the implementation in `api/telemetry.js`
+- Disable telemetry entirely by omitting `QUIETER_TELEMETRY_ENABLED` or setting it to `false`
+- Fork or modify the telemetry endpoint if desired
+

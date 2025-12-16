@@ -10,247 +10,153 @@
 
     <p>
       When you use GPT-style models today, they see more than just your text. They see your
-      network, your keys, and the shape of your traffic. A normal proxy can hide your IP
-      address — but it can’t hide <em>who</em> is really behind the request.
+      network, your API keys, and the shape of your traffic. A normal proxy can hide your IP
+      address — but it cannot fully hide who is behind the request.
     </p>
 
     <p>
-      <strong>Quieter.ai was built to fix that.</strong>
+      <strong>Quieter.ai was built to reduce that exposure.</strong>
+    </p>
+
+    <p>
+      This page describes how a hosted Quieter.ai instance can act as a privacy layer between
+      applications and GPT-style models. When self-hosted, Quieter performs the same role using
+      your own infrastructure and keys.
     </p>
 
     <section class="panel panel-highlight">
-      <h2>More than a proxy. A true identity shield.</h2>
+      <h2>More than a proxy. A true identity boundary.</h2>
       <p>
-        With Quieter.ai in the middle, GPT providers only ever see Quieter.ai’s IPs and API
-        keys, not your users or your infrastructure.
+        With Quieter.ai in the middle, GPT providers see the Quieter instance — not the
+        originating user, browser, or application environment.
       </p>
       <p>
-        Your app → Quieter.ai → GPT provider. The model never sees your tenant’s network,
-        cookies, or accounts.
+        Your app → Quieter.ai → GPT provider.
+        The model never sees your tenant’s network, cookies, or upstream authentication context.
       </p>
-    </section>
-
-    <section class="panel">
-      <h2>Try Quieter.ai with a quick demo</h2>
-      <p class="clarify">
-        Type something below and we’ll send it through Quieter.ai’s demo proxy. For this demo,
-        we don’t use your account or API key — it’s just a quick way to see the shield in action.
-      </p>
-
-      <form class="demo" @submit.prevent="runDemo">
-        <label>
-          Prompt
-          <textarea v-model="demoPrompt" rows="3"></textarea>
-        </label>
-
-        <button type="submit" :disabled="demoLoading">
-          {{ demoLoading ? 'Talking to Quieter…' : 'Ask via Quieter demo' }}
-        </button>
-
-        <p v-if="demoError" class="demo-error">{{ demoError }}</p>
-
-        <div v-if="demoResponse" class="demo-result">
-          <h3>Model reply (via Quieter)</h3>
-          <p>{{ demoResponse }}</p>
-
-          <details class="demo-details" v-if="demoDirectView && demoQuieterView" open>
-            <summary>Hide header details</summary>
-            <div class="demo-views">
-              <div>
-                <h4>If you sent this directly to a GPT site…</h4>
-                <pre v-html="formatViewHtml(demoDirectView)"></pre>
-              </div>
-              <div>
-                <h4>What Quieter actually forwards…</h4>
-                <pre v-html="formatViewHtml(demoQuieterView, true)"></pre>
-              </div>
-            </div>
-
-            <div class="demo-explain">
-              <div>
-                <h4>Why the "direct" view is personally linkable</h4>
-                <p>
-                  If you send this directly to a GPT provider, they get <em>all</em> of the above on every
-                  call, plus whatever cookies or auth headers their JavaScript has set and any per-user
-                  identifiers embedded in URLs or request bodies.
-                </p>
-                <p class="demo-quote">
-                  “The browser with UA = X, on IP = Y, at hours Z, sending these topics, is the same user,”
-                  and they can correlate that with any future login or purchase.
-                </p>
-                <ul>
-                  <li>
-                    <strong>IP and forwarding headers</strong> (for example, <code>x-forwarded-for</code>,
-                    <code>x-real-ip</code>) tie activity to your network/ISP and make it easy to follow one
-                    person or household over time.
-                  </li>
-                  <li>
-                    <strong>Browser fingerprint headers</strong> like <code>user-agent</code>,
-                    <code>sec-ch-ua</code>, <code>sec-ch-ua-platform</code>, and
-                    <code>accept-language</code> describe your exact browser, OS, and language — together they
-                    form a stable fingerprint that can be recognized across sessions.
-                  </li>
-                  <li>
-                    <strong>Context headers</strong> such as <code>referer</code> and <code>origin</code>
-                    say where you were browsing when you sent the prompt, which helps a provider build a
-                    profile of your habits over time.
-                  </li>
-                  <li>
-                    The “personal” part isn’t your name in a header, it’s
-                    <strong>linkability</strong> (tying many prompts back to the same origin) and
-                    <strong>context leakage</strong> (which site, which browser, which OS, which region,
-                    which habits).
-                  </li>
-                </ul>
-              </div>
-
-              <div>
-                <h4>What Quieter changes in the "via Quieter" view</h4>
-                <p>
-                  With Quieter in the middle, the provider sees Quieter’s network and client instead of yours,
-                  plus only the scrubbed JSON body we construct. We terminate per-user network signals on our
-                  side and originate a clean, account-level connection to the model.
-                </p>
-                <ul>
-                  <li>
-                    The provider sees <strong>Quieter.ai's IPs and client fingerprint</strong>, not your
-                    browser's IP / user-agent / device hints.
-                  </li>
-                  <li>
-                    Only a <strong>minimal JSON body</strong> with the (optionally scrubbed) prompt is
-                    forwarded — no browser cookies, no site-specific auth tokens, no referrer from your
-                    personal browsing.
-                  </li>
-                  <li>
-                    Over time, the provider can build a profile of "a Quieter.ai tenant" but not easily tie
-                    those prompts back to your individual network, device, or login.
-                  </li>
-                  <li>
-                    Your browser’s fingerprint and IP stay between you and Quieter — they don’t become part of
-                    the model provider’s training or logging corpus.
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </details>
-        </div>
-      </form>
     </section>
 
     <section class="panel">
       <h2>What Quieter.ai removes or replaces</h2>
-
       <p class="clarify">
-        The core of Quieter.ai is network identity shielding: GPT providers see Quieter.ai’s
-        IPs and keys, not yours. On top of that, you can optionally enable extra content
-        scrubbing, which further reduces what leaks into model logs.
+        The core of Quieter.ai is network identity shielding: GPT providers interact only with the
+        Quieter instance, not with end-user devices or application infrastructure. Optional
+        content scrubbing layers can further reduce accidental identity leakage.
       </p>
 
       <article class="item">
-        <h3>1. Personal Identifiers (optional scrub layer)</h3>
+        <h3>1. Personal identifiers (optional scrub layer)</h3>
         <p>
-          Proxies pass through whatever your app sends. When Quieter’s scrub layer is turned
-          on, it can strip names, emails, usernames, account references, session IDs, and
-          similar metadata before anything reaches the AI model.
+          When enabled, Quieter can heuristically remove or replace obvious identifiers such as
+          names, email addresses, usernames, and simple session or account references. This layer
+          is pattern-based and does not guarantee semantic understanding.
         </p>
       </article>
 
       <article class="item">
-        <h3>2. Tracking Noise</h3>
-        <p>Modern apps leak identity everywhere:</p>
+        <h3>2. Tracking and transport metadata</h3>
+        <p>Modern applications leak identity through:</p>
         <ul>
-          <li>Referer headers</li>
-          <li>Fingerprinting hints</li>
-          <li>Device information</li>
+          <li>Headers</li>
           <li>Cookies</li>
+          <li>Device hints</li>
           <li>Authentication tokens</li>
         </ul>
         <p>
-          A proxy often forwards these.
-          <strong>Quieter.ai deletes them.</strong>
+          Quieter removes or normalizes this metadata rather than forwarding it upstream.
         </p>
       </article>
 
       <article class="item">
-        <h3>3. Unintended identity in your content (optional scrub layer)</h3>
-        <p>If your app or browser accidentally includes:</p>
+        <h3>3. Unintended identity in prompt content (optional scrub layer)</h3>
+        <p>If content includes accidental identifiers such as:</p>
         <ul>
           <li>“User: Sarah T.”</li>
           <li>“My student ID is…”</li>
-          <li>“Here’s my private note attached to the prompt…”</li>
+          <li>Embedded private notes or metadata</li>
         </ul>
         <p>
-          A proxy will forward it upstream unchanged. With Quieter’s scrub layer enabled,
-          those patterns can be intercepted, anonymized, or blocked <em>in addition to</em>
-          the identity shield you get by default.
+          Quieter can intercept or block these patterns before they reach the model provider. This
+          is an additional safety layer, not a substitute for careful prompt design.
         </p>
       </article>
+    </section>
+
+    <section class="panel">
+      <h2>Important limitations</h2>
+      <p>
+        Quieter.ai enhances privacy, but it does not guarantee anonymity. Prompt content still
+        matters, adversarial fingerprinting is out of scope, and users can still self-identify
+        through text.
+      </p>
+      <p>
+        Quieter is designed to reduce exposure, not eliminate risk.
+      </p>
     </section>
   </section>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+</script>
 
-const apiBase = import.meta.env.VITE_API_BASE_URL;
-
-const demoPrompt = ref('');
-const demoResponse = ref('');
-const demoError = ref('');
-const demoLoading = ref(false);
-const demoDirectView = ref(null);
-const demoQuieterView = ref(null);
-
-function escapeHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+<style scoped>
+.privacy {
+  max-width: 720px;
+  margin: 0 auto;
 }
 
-function formatViewHtml(view, isQuieter = false) {
-  if (!view) return '';
-  const lines = [];
-
-  if (view.ip) {
-    const ipLabel = '<span class="hdr-label hdr-ip">IP:</span>';
-    const ipVal = `<span class="hdr-value">${escapeHtml(view.ip)}</span>`;
-    lines.push(`${ipLabel} ${ipVal}`);
-  }
-
-  if (view.headers && view.headers.length) {
-    lines.push('<span class="hdr-section">Headers:</span>');
-    for (const h of view.headers) {
-      const [rawName, ...rest] = String(h).split(':');
-      const name = (rawName || '').trim();
-      const value = (rest.join(':') || '').trim();
-      const lower = name.toLowerCase();
-      let cls = 'hdr-other';
-      if (['x-forwarded-for', 'x-real-ip'].includes(lower)) cls = 'hdr-ip';
-      else if (['user-agent', 'sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform', 'accept-language', 'dnt'].includes(lower)) cls = 'hdr-fp';
-      else if (['referer', 'origin'].includes(lower)) cls = 'hdr-context';
-      const nameHtml = `<span class="hdr-label ${cls}">${escapeHtml(name)}:</span>`;
-      const valueHtml = `<span class="hdr-value">${escapeHtml(value)}</span>`;
-      lines.push(`  ${nameHtml} ${valueHtml}`);
-    }
-  }
-
-  if (view.body != null) {
-    lines.push('<span class="hdr-section">Body:</span>');
-    const bodyStr = typeof view.body === 'string' ? view.body : JSON.stringify(view.body, null, 2);
-    const escapedBody = escapeHtml(bodyStr).replace(/\n/g, '\n');
-    lines.push(escapedBody);
-  }
-
-  return lines.join('\n');
+.privacy-header {
+  margin-bottom: 1.75rem;
 }
 
-async function runDemo() {
-  demoError.value = '';
-  demoResponse.value = '';
-  demoDirectView.value = null;
+.eyebrow {
+  display: inline-flex;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--color-primary-soft);
+  color: #7c2d12;
+  font-weight: 600;
+}
+
+h1 {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 2rem;
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.clarify {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.panel {
+  margin-top: 1.75rem;
+  padding: 1.5rem 1.4rem;
+  border-radius: 14px;
+  border: 1px solid var(--color-border);
+  background: #ffffff;
+}
+
+.panel-highlight {
+  border-color: var(--color-primary);
+  background: linear-gradient(135deg, rgba(255, 194, 14, 0.08), rgba(255, 138, 0, 0.03));
+}
+
+.item + .item {
+  margin-top: 1.25rem;
+}
+
+ul {
+  margin: 0.5rem 0 0.75rem;
+  padding-left: 1.2rem;
+}
   demoQuieterView.value = null;
   const prompt = demoPrompt.value.trim();
   if (!prompt) {
