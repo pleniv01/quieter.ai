@@ -43,9 +43,14 @@
     <div class="card">
       <h2>Hosted instances</h2>
       <p>
-        You may choose to run a hosted instance of Quieter for yourself or for a team. Any such
-        instance is responsible for its own reliability, security, and data handling. This project
-        does not describe or imply a shared, centrally operated service for other parties.
+        You may choose to run a hosted instance of Quieter for yourself, your team, or your own
+        end-users. Any such instance is responsible for its own reliability, security, and data
+        handling. This project does not describe or imply a shared, centrally operated service for
+        other parties.
+      </p>
+      <p>
+        A hosted instance is multitenant-capable: you can create an account, obtain an API key, and
+        build your own user-facing product or "universe" of users on top of Quieter.
       </p>
       <p>
         If you expose a hosted instance to others, we recommend being clear about where it runs,

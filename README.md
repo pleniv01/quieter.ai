@@ -4,7 +4,7 @@
 
 Quieter.ai is an open-source reference implementation of a privacy boundary between users (or apps) and large language model providers such as Anthropic or OpenAI.
 
-It allows people to benefit from modern language models while reducing how much identity, network, and sensitive metadata is exposed upstream.
+It allows people and applications (and their own users) to benefit from modern language models while reducing how much identity, network, and sensitive metadata is exposed upstream.
 
 > Users talk to their app.  
 > The app talks to Quieter.ai.  

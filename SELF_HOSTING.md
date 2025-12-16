@@ -1,6 +1,6 @@
 # Self-Hosting Quieter.ai
 
-Quieter is designed as a multitenant-capable system. Even in single-user deployments, tenant boundaries are preserved for isolation and future flexibility.
+Quieter is designed as a multitenant-capable system. Even in single-user deployments, tenant boundaries are preserved for isolation and future flexibility, and you can attach your own universe of users or applications to a single instance.
 
 This document explains, at a high level, what that means and what is required.
 
