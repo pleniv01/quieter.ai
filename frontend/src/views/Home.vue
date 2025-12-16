@@ -4,15 +4,15 @@
       <h1>Quieter.ai</h1>
       <p class="subtitle">
         Use AI without handing your life story to every provider. Quieter.ai sits between you and
-        GPT-style models so they only ever see Quieter, not you.
+        GPT-style models so they only ever see Quieter — not you.
       </p>
       <div class="badge-row">
         <span class="badge">Private by default · Easy to use · Works with your favorite GPT UIs*</span>
       </div>
       <p class="note">
-        Today, you talk to Quieter.ai directly. Soon, a small browser extension will sit between
-        you and your usual GPT sites, quietly routing those conversations through Quieter so the
-        models see us, not you.
+        Today, you can use a Quieter.ai instance as a privacy layer between you and GPT-style
+        models. Soon, a small browser extension can sit between you and your usual GPT sites,
+        quietly routing those conversations through Quieter so the models see Quieter, not you.
       </p>
     </div>
   </section>
@@ -30,9 +30,8 @@
       </li>
     </ul>
     <p class="note">
-      Today, you sign up on this site and use Quieter.ai as your privacy shield. Soon, you’ll be
-      able to install a simple browser extension that quietly routes your GPT conversations through
-      Quieter for you.
+      Today, you can sign up here to use a hosted Quieter.ai instance as your privacy shield. If you
+      prefer, Quieter is also open source and can be self-hosted.
     </p>
     <p class="note">
       Along the way, Quieter gives you a rough sense of what each interaction costs — per query, per

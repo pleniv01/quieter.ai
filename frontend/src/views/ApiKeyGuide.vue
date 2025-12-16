@@ -1,20 +1,27 @@
 <template>
   <section class="guide">
-    <h1>How to Use Your Quieter.ai API Key</h1>
+    <h1>How to Use a Quieter.ai API Key (Hosted Instance)</h1>
     <p class="lead">
-      This page explains what your Quieter.ai API key is, how to keep it safe, and how to use it to
-      send traffic through the Quieter.ai privacy shield.
+      This page applies only to the hosted Quieter.ai instance operated by the maintainer.
+      If you are self-hosting Quieter.ai, your API keys, base URL, and endpoints are defined by your
+      own deployment.
+    </p>
+    <p class="lead">
+      The sections below describe what your hosted-instance API key is, how to keep it safe, and how
+      to use it to send traffic through this Quieter.ai deployment.
     </p>
 
     <div class="card">
       <h2>1. What your API key is</h2>
       <p>
-        When you sign up for Quieter.ai, we generate a tenant-specific API key that looks like this:
+        When you sign up for the hosted Quieter.ai instance, we generate a tenant-specific API key
+        that looks like this:
       </p>
       <pre><code>qtr_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code></pre>
       <p>
-        This key identifies <strong>your account + profile</strong> to the Quieter.ai backend. All
-        usage and billing are tracked against it. Treat it like a password.
+        This key identifies <strong>your account + profile</strong> to the hosted Quieter.ai
+        backend. All usage and billing for this instance are tracked against it. Treat it like a
+        password.
       </p>
 
       <h2>2. Where to find your key</h2>
@@ -24,9 +31,13 @@
         dedicated "Account / API Keys" page where you can view, rotate, and revoke keys.
       </p>
 
-      <h2>3. Base URL for the Quieter API</h2>
-      <p>Production API base:</p>
+      <h2>3. Base URL (Hosted Instance Only)</h2>
+      <p>The hosted Quieter.ai instance currently runs at:</p>
       <pre><code>https://quieteraiapp-production.up.railway.app</code></pre>
+      <p>
+        This URL is specific to this deployment and may change. If you are self-hosting
+        Quieter.ai, your base URL will be the address of your own backend service.
+      </p>
 
       <h2>4. Sending a request with your API key</h2>
       <p>The main authenticated endpoint today is <code>POST /query</code>.</p>
@@ -76,6 +87,10 @@
           <strong>Rotate it</strong> if you think it was exposed (e.g., pasted into a public repo).
         </li>
       </ul>
+      <p>
+        If you want to run Quieter.ai yourself, see <code>SELF_HOSTING.md</code> in the repository
+        for deployment instructions.
+      </p>
     </div>
   </section>
 </template>
