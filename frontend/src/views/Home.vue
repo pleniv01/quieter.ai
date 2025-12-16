@@ -34,8 +34,9 @@
       </li>
     </ul>
     <p class="note">
-      Today, you can sign up here to use a hosted Quieter.ai instance as your privacy shield. If you
-      prefer, Quieter is also open source and can be self-hosted.
+      You can use this site to sign up for the hosted Quieter.ai service today and start routing
+      your GPT-style traffic through a privacy shield. If you prefer to run everything yourself,
+      Quieter is also open source and can be self-hosted.
     </p>
     <p class="note">
       Along the way, Quieter gives you a rough sense of what each interaction costs — per query, per
