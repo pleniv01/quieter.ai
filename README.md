@@ -48,30 +48,53 @@ Each deployment operates independently, and all usage metrics are local to that 
 
 Operators may choose to enable anonymized, instance-level telemetry to help support the project and improve future development.
 
+To enable backend telemetry on a self-hosted instance, set:
+
+```env
+QUIETER_TELEMETRY_ENABLED=true
+```
+
+If `QUIETER_TELEMETRY_ENABLED` is absent or set to anything other than `true`, **no telemetry code runs**.
+
 When enabled:
 
-- Telemetry is **off by default** and requires explicit configuration
 - Telemetry is **instance-level only**, not per user or per tenant
 - Telemetry is **anonymous**
-- Telemetry is sent on a coarse interval (e.g. daily or weekly)
+- Telemetry is sent on a coarse interval (about once per day)
 - Telemetry failures never affect request handling
 
 Telemetry **never includes**:
 
-- Prompt content (raw or transformed)
+- Prompt content (raw or transformed), raw or hashed
 - User identifiers
 - Tenant identifiers
 - API keys or secrets
-- IP addresses or request metadata
+- IP addresses or request headers/metadata
+- Per-request timestamps
 
-Typical telemetry data may include:
+Telemetry may include:
 
-- A randomly generated instance identifier
-- Quieter version
-- Aggregate request counts
-- Whether optional privacy features are enabled
+- A randomly generated instance identifier (UUID stored locally next to the API code)
+- The Quieter version
+- Whether optional scrub layers are enabled (e.g. basic PII, crypto, financial, medical)
+- Aggregate request counts over the interval (e.g. total requests, `/proxy` requests, `/query` requests)
 
-Telemetry can be enabled or disabled at any time by the operator and is fully inspectable in the source code.
+Telemetry can be enabled or disabled at any time by the operator and is fully inspectable in the source code (see `api/telemetry.js`).
+
+#### Verifying telemetry in a self-hosted deployment
+
+For operators, there is an admin-only debug endpoint that exposes a safe snapshot of telemetry configuration and counters:
+
+- `GET /admin/telemetry-debug` with `Authorization: Bearer <ADMIN_TOKEN>`
+
+This returns:
+
+- Whether telemetry is enabled
+- The anonymous `instance_id` (if enabled)
+- The configured telemetry endpoint
+- The current aggregate counters for this process
+
+No per-request or payload data is ever returned from this endpoint.
 
 ### Philosophy
 
