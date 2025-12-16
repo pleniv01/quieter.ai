@@ -1,11 +1,16 @@
 <template>
   <section class="auth">
-    <h1>Create a Quieter.ai account</h1>
+    <h1>Create your Quieter.ai account</h1>
     <p class="lead">
-      Sign up to get an API key you can use with the browser extension or other clients.
+      Use Quieter as your privacy shield for GPT-style tools — whether you’re here to protect your
+      own chats or to give your users a safer way to talk to models.
     </p>
 
     <form class="card" @submit.prevent="onSubmit">
+      <p class="blurb">
+        We’ll create a private account for you and issue an API key. You can plug this key into the
+        Quieter browser extension, your own apps, or other clients that speak to Quieter.
+      </p>
       <label>
         Email
         <input v-model="email" type="email" required autocomplete="email" />
@@ -17,8 +22,16 @@
       </label>
 
       <label>
-        Tenant name (optional)
-        <input v-model="tenantName" type="text" placeholder="My GPT Shield" />
+        Project / workspace name (optional)
+        <input
+          v-model="tenantName"
+          type="text"
+          placeholder="e.g. My personal notebook, Acme team workspace"
+        />
+        <span class="field-hint">
+          This is how your primary workspace will be labeled inside Quieter. You can use it for your
+          own account or as the umbrella for your users.
+        </span>
       </label>
 
       <button type="submit" :disabled="loading">
@@ -34,8 +47,8 @@
           <code>{{ apiKey }}</code>
         </p>
         <p class="hint">
-          Store this somewhere safe. You will paste it into the browser extension or other
-          Quieter.ai clients.
+          Copy this somewhere safe. You’ll paste it into the Quieter browser extension or your own
+          apps so they can send requests through your Quieter shield.
         </p>
       </div>
     </form>
@@ -112,6 +125,12 @@ async function onSubmit() {
   gap: 0.9rem;
 }
 
+.blurb {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+}
+
 label {
   display: flex;
   flex-direction: column;
@@ -159,6 +178,11 @@ code {
   padding: 0.15rem 0.3rem;
   border-radius: 4px;
   background: #f3f4f6;
+}
+
+.field-hint {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
 }
 
 .hint {
