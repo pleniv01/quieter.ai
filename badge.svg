@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="150" height="20" role="img" aria-label="Powered by Quieter.ai">
+  <rect width="150" height="20" fill="#111"/>
+  <text x="75" y="14"
+        fill="#fff"
+        font-size="11"
+        font-family="system-ui, -apple-system, BlinkMacSystemFont, sans-serif"
+        text-anchor="middle">
+    Powered by Quieter.ai
+  </text>
+</svg>
