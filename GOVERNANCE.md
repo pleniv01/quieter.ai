@@ -38,13 +38,21 @@ This is intentional and helps keep the project sustainable.
 
 ---
 
-## Patent & Commercial Use Notice
+## Commercial & Patent Notice
 
 This project is open source under the Apache License 2.0.
 
 The maintainer reserves the right to:
 
 - Pursue patents on independently developed inventions
-- Offer commercial services, hosted versions, or related products
+- Offer commercial services or hosted versions
+- Develop related proprietary offerings
 
 Use of this code is governed solely by the terms of the license.
+
+---
+
+## Contact
+
+For questions or governance concerns:  
+**quieter@quieter.ai**

@@ -9,7 +9,7 @@ Quieter.ai deals with privacy-sensitive infrastructure. We take security concern
 If you believe you have discovered a security or privacy issue:
 
 - **Do not open a public GitHub issue**
-- Email: security@quieter.ai (replace with maintainer contact if needed)
+- Email: **quieter@quieter.ai**
 - Include enough detail to reproduce the issue
 
 Responses are provided on a best-effort basis.
