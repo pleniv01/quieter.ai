@@ -6,6 +6,20 @@
       own chats or to give your users a safer way to talk to models.
     </p>
 
+    <p class="steps">
+      Getting started is simple:
+      <br />
+      <strong>1)</strong> Create your account. <strong>2)</strong> Install the Quieter browser
+      extension and paste in your API key. <strong>3)</strong> Keep using your usual GPT sites —
+      Quieter quietly sits in the middle, hiding your identity and showing you what your AI usage is
+      likely costing.
+    </p>
+
+    <p class="dev-note">
+      Building your own app or tool? You can also use this account to get an API key and follow the
+      <RouterLink :to="{ name: 'ApiKeyGuide' }">hosted API key guide</RouterLink>.
+    </p>
+
     <form class="card" @submit.prevent="onSubmit">
       <p class="blurb">
         We’ll create a private account for you and issue an API key. You can plug this key into the
@@ -57,7 +71,7 @@
 
 <script setup>
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, RouterLink } from 'vue-router';
 
 const apiBase = import.meta.env.VITE_API_BASE_URL;
 const router = useRouter();
@@ -111,9 +125,25 @@ async function onSubmit() {
 
 .lead {
   color: var(--color-text-muted);
-  margin-bottom: 1.25rem;
+  margin-bottom: 0.75rem;
 }
 
+.steps {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.dev-note {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin-bottom: 1rem;
+}
+
+.dev-note a {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
 .card {
   background: #ffffff;
   border-radius: 14px;
