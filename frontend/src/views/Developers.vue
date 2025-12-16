@@ -70,6 +70,11 @@
         For questions about the codebase, licensing, or responsible use, you can reach the
         maintainer at <a href="mailto:quieter@quieter.ai">quieter@quieter.ai</a>.
       </p>
+      <p class="note">
+        <strong>Optional attribution:</strong> If you deploy or redistribute Quieter and are able to
+        do so, a small “Powered by Quieter.ai” attribution is appreciated and helps support the
+        project’s continued development.
+      </p>
     </div>
   </section>
 </template>
