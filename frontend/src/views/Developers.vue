@@ -73,7 +73,7 @@
       <p class="note">
         <strong>Optional attribution:</strong> If you deploy or redistribute Quieter and are able to
         do so, a small “Powered by Quieter.ai” attribution is appreciated and helps support the
-        project’s continued development.
+        project’s continued development.  See Github repo for details.
       </p>
     </div>
   </section>
