@@ -4,6 +4,12 @@ This document outlines the current direction and long-term vision for Quieter.ai
 It is not a commitment or promise, and priorities may change based on user needs,
 contributor interest, and ongoing research.
 
+# Who Are You
+
+Contributions from people who care about privacy, usability, and long-term implications of lack of privacy are especially welcome.
+
+This project is especially suited to contributors who value restraint, clarity, and user autonomy over rapid growth.  Let's build something we are proud of.
+
 ## Guiding Principle
 
 Quieter.ai exists to help people use modern AI systems without surrendering
