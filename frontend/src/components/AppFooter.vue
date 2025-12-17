@@ -7,7 +7,6 @@
     <div class="footer-links">
       <RouterLink to="/privacy">Privacy</RouterLink>
       <RouterLink to="/privacy-policy">Privacy Policy</RouterLink>
-      <RouterLink to="/admin">Admin</RouterLink>
     </div>
   </footer>
 </template>
