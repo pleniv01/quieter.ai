@@ -20,6 +20,11 @@
       <RouterLink :to="{ name: 'ApiKeyGuide' }">hosted API key guide</RouterLink>.
     </p>
 
+    <p class="preview-note">
+      This is an early-access hosted preview. Billing and long-term availability are not yet
+      finalized.
+    </p>
+
     <form class="card" @submit.prevent="onSubmit">
       <p class="blurb">
         We’ll create a private account for you and issue an API key. You can plug this key into the
@@ -137,12 +142,18 @@ async function onSubmit() {
 .dev-note {
   font-size: 0.85rem;
   color: var(--color-text-muted);
-  margin-bottom: 1rem;
+  margin-bottom: 0.35rem;
 }
 
 .dev-note a {
   color: var(--color-primary);
   text-decoration: underline;
+}
+
+.preview-note {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-bottom: 1rem;
 }
 .card {
   background: #ffffff;
