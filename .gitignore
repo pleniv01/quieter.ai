@@ -21,6 +21,7 @@ pnpm-debug.log*
 
 # Local documentation
 /docs/
+*.txt
 
 # Editor / OS noise
 .DS_Store
