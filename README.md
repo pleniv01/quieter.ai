@@ -128,6 +128,11 @@ Telemetry can be enabled or disabled at any time by the operator and is fully in
 
 This project exists because the tool should exist — not to become a comprehensive privacy management platform.
 
+## Project Direction
+
+The long-term direction of Quieter.ai is outlined in [ROADMAP.md](./ROADMAP.md).
+
+
 ---
 
 ## Attribution
