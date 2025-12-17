@@ -1,7 +1,8 @@
-# Environment variables (never commit)
+# Ignore real env files
 .env
 .env.*
-*.local
+!*.env.example
+
 
 # Node dependencies (never commit)
 node_modules/
