@@ -19,6 +19,7 @@ const anthropic = new Anthropic({
 
 const stripeSecret = process.env.STRIPE_SECRET_KEY || null;
 const stripePriceId = process.env.STRIPE_PRICE_ID || null;
+const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || null;
 const stripe = stripeSecret ? new Stripe(stripeSecret) : null;
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || null;
@@ -62,6 +63,61 @@ app.use(cors({ origin: true }));
 
 // Explicitly handle preflight for the /proxy endpoint so browsers see CORS headers.
 app.options('/proxy', cors({ origin: true }));
+
+// We attach the webhook route with raw body parsing before the global JSON parser.
+// This allows Stripe to verify the signature against the unmodified payload.
+app.post('/billing/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    if (!stripe || !stripeWebhookSecret) {
+      return res.status(503).json({ ok: false, error: 'Billing webhook is not configured' });
+    }
+    const sig = req.headers['stripe-signature'];
+    if (!sig) {
+      return res.status(400).json({ ok: false, error: 'Missing Stripe signature' });
+    }
+
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, stripeWebhookSecret);
+    } catch (err) {
+      console.error('Stripe webhook signature verification failed', err?.message || err);
+      return res.status(400).json({ ok: false, error: 'Invalid signature' });
+    }
+
+    if (event.type === 'checkout.session.completed' || event.type === 'invoice.paid') {
+      const session = event.data.object;
+      const email = session.customer_email || session.customer_details?.email || null;
+      if (email) {
+        try {
+          const accountRes = await pool.query('SELECT id FROM accounts WHERE email = $1 LIMIT 1', [
+            email.toLowerCase(),
+          ]);
+          const accountId = accountRes.rows[0]?.id || null;
+          if (accountId) {
+            const tenantsRes = await pool.query(
+              'SELECT id FROM tenants WHERE account_id = $1',
+              [accountId]
+            );
+            const tenantIds = tenantsRes.rows.map(r => r.id);
+            if (tenantIds.length) {
+              await pool.query(
+                'UPDATE balances SET credits_remaining = COALESCE(credits_remaining,0) + $1, plan = $2, updated_at = NOW() WHERE tenant_id = ANY($3::text[])',
+                [995, 'quieter-hosted', tenantIds]
+              );
+            }
+          }
+        } catch (e) {
+          console.error('Failed to apply credits from Stripe webhook', e);
+        }
+      }
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Billing webhook error', err);
+    res.status(500).json({ ok: false, error: 'Webhook handler error' });
+  }
+});
 
 app.use(express.json());
 
