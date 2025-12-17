@@ -74,6 +74,9 @@
           This is a rough view of your prepaid balance. As you send requests through your
           Quieter.ai API key, the billed amount is deducted here.
         </p>
+        <button type="button" class="secondary" @click="startTestSubscription" :disabled="startingSub">
+          {{ startingSub ? 'Redirecting to Stripe…' : 'Try subscription (test)' }}
+        </button>
       </div>
 
       <div v-if="report" class="report-card">
@@ -158,6 +161,8 @@ const report = ref(null);
 const loadingReport = ref(false);
 const reportError = ref('');
 
+const startingSub = ref(false);
+
 async function fetchMe() {
   if (!accountId.value) return false;
   try {
@@ -207,6 +212,30 @@ async function loadUsage() {
     error.value = e.message || 'Failed to load usage.';
   } finally {
     loading.value = false;
+  }
+}
+
+async function startTestSubscription() {
+  if (!accountId.value) return;
+  startingSub.value = true;
+  try {
+    const res = await fetch(`${apiBase}/billing/create-checkout-session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId: accountId.value }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok || !data.url) {
+      console.error('Failed to create checkout session', data);
+      startingSub.value = false;
+      return;
+    }
+    window.location.href = data.url;
+  } catch (e) {
+    console.error(e);
+  } finally {
+    // We intentionally do not reset startingSub here in the happy path because we expect a redirect.
+    // If the call fails, it is reset above.
   }
 }
 

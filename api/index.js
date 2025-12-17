@@ -6,6 +6,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
+import Stripe from 'stripe';
 import { initTelemetry, recordTelemetryRequest, getTelemetryDebugSnapshot } from './telemetry.js';
 
 dotenv.config();
@@ -15,6 +16,10 @@ const { Pool } = pkg;
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
+
+const stripeSecret = process.env.STRIPE_SECRET_KEY || null;
+const stripePriceId = process.env.STRIPE_PRICE_ID || null;
+const stripe = stripeSecret ? new Stripe(stripeSecret) : null;
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || null;
 
@@ -67,6 +72,42 @@ app.get('/health', async (req, res) => {
   } catch (err) {
     console.error('Health check failed', err);
     res.status(500).json({ status: 'error', message: 'DB connection failed' });
+  }
+});
+
+// --- Billing (Stripe test integration) ---
+app.post('/billing/create-checkout-session', async (req, res) => {
+  try {
+    if (!stripe || !stripePriceId) {
+      return res.status(503).json({ ok: false, error: 'Billing is not configured' });
+    }
+
+    const { accountId } = req.body || {};
+    if (!accountId) {
+      return res.status(400).json({ ok: false, error: 'accountId is required' });
+    }
+
+    // Look up the account email for nicer Stripe receipts.
+    const result = await pool.query('SELECT email FROM accounts WHERE id = $1 LIMIT 1', [accountId]);
+    const email = result.rows[0]?.email || undefined;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      line_items: [
+        {
+          price: stripePriceId,
+          quantity: 1,
+        },
+      ],
+      customer_email: email,
+      success_url: 'https://quieter.ai/dashboard?billing=success',
+      cancel_url: 'https://quieter.ai/dashboard?billing=cancel',
+    });
+
+    return res.json({ ok: true, url: session.url });
+  } catch (err) {
+    console.error('Create checkout session error', err);
+    return res.status(500).json({ ok: false, error: 'Could not create checkout session' });
   }
 });
 
