@@ -23,6 +23,10 @@ pnpm-debug.log*
 /docs/
 *.txt
 
+# Never commit credentials / key dumps (even if /docs/ gets tracked later)
+*Stripe*Keys*.md
+*stripe*keys*.md
+
 # Editor / OS noise
 .DS_Store
 .vscode/
