@@ -21,6 +21,12 @@ const stripeSecret = process.env.STRIPE_SECRET_KEY || null;
 const stripePriceId = process.env.STRIPE_PRICE_ID || null;
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || null;
 const stripe = stripeSecret ? new Stripe(stripeSecret) : null;
+const stripeCheckoutMode = process.env.STRIPE_CHECKOUT_MODE || 'subscription'; // 'subscription' | 'payment'
+
+const billingSuccessUrl =
+  process.env.BILLING_SUCCESS_URL || 'https://quieter.ai/dashboard?billing=success';
+const billingCancelUrl =
+  process.env.BILLING_CANCEL_URL || 'https://quieter.ai/dashboard?billing=cancel';
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || null;
 
@@ -84,31 +90,141 @@ app.post('/billing/webhook', express.raw({ type: 'application/json' }), async (r
       return res.status(400).json({ ok: false, error: 'Invalid signature' });
     }
 
-    if (event.type === 'checkout.session.completed' || event.type === 'invoice.paid') {
+    // Credit top-ups:
+    // - one-time purchases: handled via checkout.session.completed (mode=payment)
+    // - subscriptions: handled via invoice.paid (avoid double-crediting by ignoring checkout completion for subscriptions)
+    if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
+
+      // Only credit balances for one-time payments (credit packs).
+      if (session.mode && session.mode !== 'payment') {
+        return res.json({ ok: true });
+      }
+
+      const amountCents = Number(session.amount_total ?? 0);
+      if (!Number.isFinite(amountCents) || amountCents <= 0) {
+        return res.json({ ok: true });
+      }
+
       const email = session.customer_email || session.customer_details?.email || null;
-      if (email) {
-        try {
+      let accountId = session.metadata?.accountId || session.client_reference_id || null;
+
+      try {
+        if (!accountId && email) {
           const accountRes = await pool.query('SELECT id FROM accounts WHERE email = $1 LIMIT 1', [
-            email.toLowerCase(),
+            String(email).toLowerCase(),
           ]);
-          const accountId = accountRes.rows[0]?.id || null;
-          if (accountId) {
-            const tenantsRes = await pool.query(
-              'SELECT id FROM tenants WHERE account_id = $1',
-              [accountId]
-            );
-            const tenantIds = tenantsRes.rows.map(r => r.id);
-            if (tenantIds.length) {
-              await pool.query(
-                'UPDATE balances SET credits_remaining = COALESCE(credits_remaining,0) + $1, plan = $2, updated_at = NOW() WHERE tenant_id = ANY($3::text[])',
-                [995, 'quieter-hosted', tenantIds]
-              );
-            }
-          }
-        } catch (e) {
-          console.error('Failed to apply credits from Stripe webhook', e);
+          accountId = accountRes.rows[0]?.id || null;
         }
+
+        if (!accountId) {
+          return res.json({ ok: true });
+        }
+
+        // Idempotency: record the Stripe event first; only credit if we inserted a new row.
+        const paymentId = crypto.randomUUID();
+        const insertRes = await pool.query(
+          `INSERT INTO stripe_payments
+            (id, account_id, stripe_event_id, stripe_object_id, kind, amount_cents, currency, stripe_created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $8 > 0 THEN to_timestamp($8) ELSE NULL END)
+           ON CONFLICT (stripe_event_id) DO NOTHING
+           RETURNING id`,
+          [
+            paymentId,
+            accountId,
+            event.id,
+            session.id || null,
+            event.type,
+            amountCents,
+            session.currency || 'usd',
+            Number(event.created || 0),
+          ]
+        );
+
+        if (!insertRes.rows.length) {
+          return res.json({ ok: true });
+        }
+
+        const tenantsRes = await pool.query('SELECT id FROM tenants WHERE account_id = $1', [
+          accountId,
+        ]);
+        const tenantIds = tenantsRes.rows.map((r) => r.id);
+        if (tenantIds.length) {
+          await pool.query(
+            'UPDATE balances SET credits_remaining = COALESCE(credits_remaining,0) + $1, plan = $2, updated_at = NOW() WHERE tenant_id = ANY($3::text[])',
+            [amountCents, 'quieter-hosted', tenantIds]
+          );
+        }
+      } catch (e) {
+        console.error('Failed to apply credits from Stripe webhook', e);
+      }
+    }
+
+    if (event.type === 'invoice.paid') {
+      const invoice = event.data.object;
+      const amountCents = Number(invoice.amount_paid ?? 0);
+      if (!Number.isFinite(amountCents) || amountCents <= 0) {
+        return res.json({ ok: true });
+      }
+
+      try {
+        let accountId = null;
+
+        const stripeCustomerId = invoice.customer ? String(invoice.customer) : null;
+        if (stripeCustomerId) {
+          const accountRes = await pool.query(
+            'SELECT id FROM accounts WHERE stripe_customer_id = $1 LIMIT 1',
+            [stripeCustomerId]
+          );
+          accountId = accountRes.rows[0]?.id || null;
+        }
+
+        if (!accountId && invoice.customer_email) {
+          const accountRes = await pool.query('SELECT id FROM accounts WHERE email = $1 LIMIT 1', [
+            String(invoice.customer_email).toLowerCase(),
+          ]);
+          accountId = accountRes.rows[0]?.id || null;
+        }
+
+        if (!accountId) {
+          return res.json({ ok: true });
+        }
+
+        const paymentId = crypto.randomUUID();
+        const insertRes = await pool.query(
+          `INSERT INTO stripe_payments
+            (id, account_id, stripe_event_id, stripe_object_id, kind, amount_cents, currency, stripe_created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $8 > 0 THEN to_timestamp($8) ELSE NULL END)
+           ON CONFLICT (stripe_event_id) DO NOTHING
+           RETURNING id`,
+          [
+            paymentId,
+            accountId,
+            event.id,
+            invoice.id || null,
+            event.type,
+            amountCents,
+            invoice.currency || 'usd',
+            Number(event.created || 0),
+          ]
+        );
+
+        if (!insertRes.rows.length) {
+          return res.json({ ok: true });
+        }
+
+        const tenantsRes = await pool.query('SELECT id FROM tenants WHERE account_id = $1', [
+          accountId,
+        ]);
+        const tenantIds = tenantsRes.rows.map((r) => r.id);
+        if (tenantIds.length) {
+          await pool.query(
+            'UPDATE balances SET credits_remaining = COALESCE(credits_remaining,0) + $1, plan = $2, updated_at = NOW() WHERE tenant_id = ANY($3::text[])',
+            [amountCents, 'quieter-hosted', tenantIds]
+          );
+        }
+      } catch (e) {
+        console.error('Failed to apply credits from invoice.paid', e);
       }
     }
 
@@ -143,21 +259,41 @@ app.post('/billing/create-checkout-session', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'accountId is required' });
     }
 
-    // Look up the account email for nicer Stripe receipts.
-    const result = await pool.query('SELECT email FROM accounts WHERE id = $1 LIMIT 1', [accountId]);
+    // Look up the account email for nicer Stripe receipts and/or customer creation.
+    const result = await pool.query(
+      'SELECT email, stripe_customer_id FROM accounts WHERE id = $1 LIMIT 1',
+      [accountId]
+    );
     const email = result.rows[0]?.email || undefined;
+    let stripeCustomerId = result.rows[0]?.stripe_customer_id || null;
 
+    if (!stripeCustomerId) {
+      const customer = await stripe.customers.create({
+        email,
+        metadata: { accountId },
+      });
+      stripeCustomerId = customer.id;
+      await pool.query('UPDATE accounts SET stripe_customer_id = $1 WHERE id = $2', [
+        stripeCustomerId,
+        accountId,
+      ]);
+    }
+
+    const mode = stripeCheckoutMode === 'payment' ? 'payment' : 'subscription';
     const session = await stripe.checkout.sessions.create({
-      mode: 'subscription',
+      mode,
       line_items: [
         {
           price: stripePriceId,
           quantity: 1,
         },
       ],
-      customer_email: email,
-      success_url: 'https://quieter.ai/dashboard?billing=success',
-      cancel_url: 'https://quieter.ai/dashboard?billing=cancel',
+      client_reference_id: accountId,
+      metadata: { accountId },
+      customer: stripeCustomerId,
+      ...(mode === 'subscription' ? { subscription_data: { metadata: { accountId } } } : {}),
+      success_url: billingSuccessUrl,
+      cancel_url: billingCancelUrl,
     });
 
     return res.json({ ok: true, url: session.url });
@@ -410,6 +546,41 @@ app.get('/me/report', async (req, res) => {
   } catch (err) {
     console.error('Report error', err);
     return res.status(500).json({ ok: false, error: 'Could not build report' });
+  }
+});
+
+// Billing history (minimal): last successful Stripe payment we recorded for this account.
+app.get('/me/billing', async (req, res) => {
+  try {
+    const accountId = req.query.accountId;
+    if (!accountId) {
+      return res.status(400).json({ ok: false, error: 'accountId is required' });
+    }
+
+    const payRes = await pool.query(
+      `SELECT amount_cents, currency, COALESCE(stripe_created_at, created_at) AS paid_at, kind
+       FROM stripe_payments
+       WHERE account_id = $1
+       ORDER BY COALESCE(stripe_created_at, created_at) DESC
+       LIMIT 1`,
+      [accountId]
+    );
+
+    const row = payRes.rows[0] || null;
+    return res.json({
+      ok: true,
+      lastPayment: row
+        ? {
+            amountCents: Number(row.amount_cents || 0),
+            currency: row.currency || 'usd',
+            paidAt: row.paid_at,
+            kind: row.kind,
+          }
+        : null,
+    });
+  } catch (err) {
+    console.error('Billing history error', err);
+    return res.status(500).json({ ok: false, error: 'Could not load billing history' });
   }
 });
 

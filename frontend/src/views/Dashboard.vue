@@ -10,6 +10,11 @@
     </div>
 
     <div v-else class="card">
+      <div v-if="billingStatus" class="notice">
+        <p v-if="billingStatus === 'success'">Billing update received. Refreshing your balance…</p>
+        <p v-else-if="billingStatus === 'cancel'">Billing was canceled.</p>
+      </div>
+
       <p class="dev-link">
         For implementation details, see the
         <RouterLink to="/docs/how-to-use-quieter-api-key">API key guide</RouterLink>.
@@ -70,12 +75,22 @@
           <strong>Credits remaining:</strong>
           <span>${{ (usage.creditsRemainingCents / 100).toFixed(2) }}</span>
         </p>
+        <p v-if="lastPayment" class="billing-note">
+          <strong>Last payment:</strong>
+          ${{ (lastPayment.amountCents / 100).toFixed(2) }}
+          <span v-if="lastPayment.paidAt">
+            on {{ new Date(lastPayment.paidAt).toLocaleString() }}
+          </span>
+        </p>
+        <p v-else class="billing-note">
+          <strong>Last payment:</strong> none recorded yet.
+        </p>
         <p class="billing-note">
           This is a rough view of your prepaid balance. As you send requests through your
           Quieter.ai API key, the billed amount is deducted here.
         </p>
-        <button type="button" class="secondary" @click="startTestSubscription" :disabled="startingSub">
-          {{ startingSub ? 'Redirecting to Stripe…' : 'Try subscription (test)' }}
+        <button type="button" class="secondary" @click="startCheckout" :disabled="startingCheckout">
+          {{ startingCheckout ? 'Redirecting to Stripe…' : 'Buy credits (subscribe)' }}
         </button>
       </div>
 
@@ -161,7 +176,12 @@ const report = ref(null);
 const loadingReport = ref(false);
 const reportError = ref('');
 
-const startingSub = ref(false);
+const startingCheckout = ref(false);
+
+const lastPayment = ref(null);
+const loadingBilling = ref(false);
+
+const billingStatus = ref(new URLSearchParams(window.location.search).get('billing') || '');
 
 async function fetchMe() {
   if (!accountId.value) return false;
@@ -215,9 +235,30 @@ async function loadUsage() {
   }
 }
 
-async function startTestSubscription() {
+async function loadBilling() {
   if (!accountId.value) return;
-  startingSub.value = true;
+  loadingBilling.value = true;
+  try {
+    const url = new URL(`${apiBase}/me/billing`);
+    url.searchParams.set('accountId', accountId.value);
+    const res = await fetch(url.toString());
+    if (!res.ok) {
+      lastPayment.value = null;
+      return;
+    }
+    const data = await res.json().catch(() => ({}));
+    lastPayment.value = data.lastPayment || null;
+  } catch (e) {
+    console.error(e);
+    lastPayment.value = null;
+  } finally {
+    loadingBilling.value = false;
+  }
+}
+
+async function startCheckout() {
+  if (!accountId.value) return;
+  startingCheckout.value = true;
   try {
     const res = await fetch(`${apiBase}/billing/create-checkout-session`, {
       method: 'POST',
@@ -227,14 +268,14 @@ async function startTestSubscription() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok || !data.url) {
       console.error('Failed to create checkout session', data);
-      startingSub.value = false;
+      startingCheckout.value = false;
       return;
     }
     window.location.href = data.url;
   } catch (e) {
     console.error(e);
   } finally {
-    // We intentionally do not reset startingSub here in the happy path because we expect a redirect.
+    // We intentionally do not reset startingCheckout here in the happy path because we expect a redirect.
     // If the call fails, it is reset above.
   }
 }
@@ -270,6 +311,15 @@ onMounted(async () => {
     return;
   }
   await loadUsage();
+  await loadBilling();
+
+  // Stripe subscription invoice processing may land slightly after the redirect.
+  if (billingStatus.value === 'success') {
+    setTimeout(async () => {
+      await loadUsage();
+      await loadBilling();
+    }, 1500);
+  }
 });
 </script>
 
