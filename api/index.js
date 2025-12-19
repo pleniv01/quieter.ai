@@ -1518,15 +1518,22 @@ app.get('/admin/accounts/:id/usage/export', requireAdmin, async (req, res) => {
       return res.status(400).json({ ok: false, error: 'id is required' });
     }
     const limit = Math.min(Number(req.query.limit) || 5000, 20000);
+    const tenantId = req.query.tenantId ? String(req.query.tenantId) : null;
+    const start = req.query.start ? new Date(req.query.start) : null;
+    const end = req.query.end ? new Date(req.query.end) : null;
+
     const usageRes = await pool.query(
       `SELECT u.id, u.created_at, u.model_config_id, u.total_tokens, u.redactions_count,
               u.provider_cost_cents, u.billed_cents, u.status, u.tenant_id
        FROM usage_logs u
        JOIN tenants t ON u.tenant_id = t.id
        WHERE t.account_id = $1
+         AND ($2::text IS NULL OR u.tenant_id = $2)
+         AND ($3::timestamptz IS NULL OR u.created_at >= $3)
+         AND ($4::timestamptz IS NULL OR u.created_at <= $4)
        ORDER BY u.created_at DESC
-       LIMIT $2`,
-      [id, limit]
+       LIMIT $5`,
+      [id, tenantId, start, end, limit]
     );
     const rows = usageRes.rows || [];
     const header = [

@@ -80,10 +80,21 @@
       </div>
 
       <div class="actions-row">
-        <button class="secondary" @click="exportUsage(account.id)" :disabled="exporting">
-          {{ exporting ? 'Exporting…' : 'Export usage CSV' }}
-        </button>
-        <span v-if="exportError" class="error">{{ exportError }}</span>
+        <div class="export-row">
+          <label>Start <input type="datetime-local" v-model="exportStart" /></label>
+          <label>End <input type="datetime-local" v-model="exportEnd" /></label>
+          <label>
+            Tenant
+            <select v-model="exportTenant">
+              <option value="">All</option>
+              <option v-for="t in tenants" :key="t.id" :value="t.id">{{ t.name }}</option>
+            </select>
+          </label>
+          <button class="secondary" @click="exportUsage(account.id)" :disabled="exporting">
+            {{ exporting ? 'Exporting…' : 'Export usage CSV' }}
+          </button>
+          <span v-if="exportError" class="error">{{ exportError }}</span>
+        </div>
       </div>
 
       <h3>Tenants</h3>
@@ -182,6 +193,9 @@ const modelUsage = ref([]);
 const rotatingTenantId = ref('');
 const exporting = ref(false);
 const exportError = ref('');
+const exportStart = ref('');
+const exportEnd = ref('');
+const exportTenant = ref('');
 
 function findCredits(tenantId) {
   const b = balances.value.find(b => b.tenant_id === tenantId);
@@ -409,7 +423,11 @@ async function exportUsage(accountId) {
       exporting.value = false;
       return;
     }
-    const res = await fetch(`${apiBase}/admin/accounts/${accountId}/usage/export`, {
+    const url = new URL(`${apiBase}/admin/accounts/${accountId}/usage/export`);
+    if (exportStart.value) url.searchParams.set('start', exportStart.value);
+    if (exportEnd.value) url.searchParams.set('end', exportEnd.value);
+    if (exportTenant.value) url.searchParams.set('tenantId', exportTenant.value);
+    const res = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) {
@@ -583,6 +601,19 @@ async function deleteAccount(id) {
   border: 1px dashed var(--color-border);
   border-radius: 10px;
   background: #f9fafb;
+}
+
+.export-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.export-row label {
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
 }
 
 .create-card {
