@@ -20,10 +20,10 @@
     <div class="steps">
       <div class="step">
         <p class="eyebrow">Step 1</p>
-        <h2>Create your account</h2>
+        <h2>Create your account (free)</h2>
         <p class="muted">
-          Sign up on the dashboard. We’ll give you a default tenant and an API key you can use with
-          the browser extension or API.
+          Sign up on the dashboard. We’ll give you a default tenant and an API key you can use with the
+          browser extension or API. Billing only starts when you add credits.
         </p>
       </div>
       <div class="step">
@@ -31,23 +31,25 @@
         <h2>Install the extension</h2>
         <p class="muted">
           Install the Quieter.ai browser extension, then paste your API key into the extension
-          settings. The extension will send requests through Quieter.ai with redaction applied.
+          settings. When you use Claude.ai (and other supported sites) in your browser, those requests
+          will be proxied through Quieter.ai with redaction applied—no need to use a special site.
         </p>
       </div>
       <div class="step">
         <p class="eyebrow">Step 3</p>
-        <h2>Subscribe, then top up anytime</h2>
+        <h2>Add credits</h2>
         <p class="muted">
           From the dashboard, start your monthly subscription (500 credits included, billed monthly).
           When you need more, add top-ups (1000 credits each) as often as you like—no extra renewal
-          required.
+          required. Already subscribed? Just top up when you’re low.
         </p>
       </div>
       <div class="step">
         <p class="eyebrow">Step 4</p>
         <h2>Use and monitor</h2>
         <p class="muted">
-          Watch your balance and last payment on the dashboard. Top up when you’re low. No surprise
+          Keep using Claude.ai and other supported sites with the extension enabled. Watch your
+          balance and last payment on the dashboard and top up whenever you’re low. No surprise
           charges if you’re idle.
         </p>
       </div>
