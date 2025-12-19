@@ -8,8 +8,11 @@
         surprise charges if you’re idle.
       </p>
       <div class="actions">
-        <RouterLink to="/dashboard" class="btn primary">Go to dashboard</RouterLink>
-        <RouterLink to="/signup" class="btn ghost">Create an account</RouterLink>
+        <RouterLink v-if="isAuthed" to="/dashboard" class="btn primary">Go to dashboard</RouterLink>
+        <template v-else>
+          <RouterLink to="/signup" class="btn primary">Create an account</RouterLink>
+          <RouterLink to="/login" class="btn ghost">Log in</RouterLink>
+        </template>
       </div>
     </header>
 
@@ -23,7 +26,7 @@
           <li>Credits roll over in your balance</li>
           <li>No usage = no extra charges</li>
         </ul>
-        <RouterLink to="/dashboard" class="btn block">Subscribe from dashboard</RouterLink>
+        <RouterLink to="/dashboard" class="btn block">Manage subscription</RouterLink>
       </div>
 
       <div class="card">
@@ -35,7 +38,7 @@
           <li>Use when you’re running low</li>
           <li>Stackable with the base plan</li>
         </ul>
-        <RouterLink to="/dashboard" class="btn ghost block">Top up from dashboard</RouterLink>
+        <RouterLink to="/dashboard" class="btn ghost block">Top up credits</RouterLink>
       </div>
     </div>
 
@@ -49,7 +52,25 @@
 </template>
 
 <script setup>
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { RouterLink } from 'vue-router';
+
+const isAuthed = ref(false);
+
+const syncAuthState = () => {
+  isAuthed.value = Boolean(localStorage.getItem('quieterAccountId'));
+};
+
+onMounted(() => {
+  syncAuthState();
+  window.addEventListener('storage', syncAuthState);
+  window.addEventListener('quieter-auth-changed', syncAuthState);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('storage', syncAuthState);
+  window.removeEventListener('quieter-auth-changed', syncAuthState);
+});
 </script>
 
 <style scoped>
@@ -127,6 +148,7 @@ h1 {
   border: 1px solid var(--color-border);
   color: var(--color-text);
   background: #fff;
+  box-sizing: border-box;
 }
 
 .btn.primary {
@@ -141,6 +163,9 @@ h1 {
 
 .btn.block {
   width: 100%;
+  max-width: 100%;
+  display: block;
+  white-space: normal;
 }
 
 .note {

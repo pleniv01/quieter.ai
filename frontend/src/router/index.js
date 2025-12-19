@@ -11,6 +11,7 @@ import AdminLogin from '../views/AdminLogin.vue';
 import AdminModels from '../views/AdminModels.vue';
 import AdminAccounts from '../views/AdminAccounts.vue';
 import Pricing from '../views/Pricing.vue';
+import HowItWorks from '../views/HowItWorks.vue';
 
 const routes = [
   { path: '/', name: 'Home', component: Home },
@@ -19,6 +20,7 @@ const routes = [
   { path: '/signup', name: 'Signup', component: Signup },
   { path: '/login', name: 'Login', component: Login },
   { path: '/pricing', name: 'Pricing', component: Pricing },
+  { path: '/how-it-works', name: 'HowItWorks', component: HowItWorks },
   { path: '/dashboard', name: 'Dashboard', component: Dashboard },
   { path: '/developers', name: 'Developers', component: Developers },
   { path: '/docs/how-to-use-quieter-api-key', name: 'ApiKeyGuide', component: ApiKeyGuide },

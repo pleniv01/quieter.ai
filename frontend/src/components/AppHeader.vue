@@ -10,6 +10,7 @@
 
     <nav class="nav">
       <RouterLink to="/pricing" class="nav-link">Pricing</RouterLink>
+      <RouterLink to="/how-it-works" class="nav-link">How it works</RouterLink>
       <RouterLink to="/privacy" class="nav-link">Privacy</RouterLink>
       <RouterLink to="/developers" class="nav-link">Open source</RouterLink>
       <RouterLink to="/dashboard" class="nav-link">Dashboard</RouterLink>
@@ -26,13 +27,18 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 
 const router = useRouter();
 
-const accountId = computed(() => localStorage.getItem('quieterAccountId') || '');
-const email = computed(() => localStorage.getItem('quieterEmail') || '');
+const accountId = ref('');
+const email = ref('');
+
+const syncAuthState = () => {
+  accountId.value = localStorage.getItem('quieterAccountId') || '';
+  email.value = localStorage.getItem('quieterEmail') || '';
+};
 
 function clearLocalAccount() {
   try {
@@ -46,9 +52,21 @@ function clearLocalAccount() {
 
 function logout() {
   clearLocalAccount();
-  // Use a hard redirect to guarantee state is cleared even if the router is unhappy.
+  window.dispatchEvent(new Event('quieter-auth-changed'));
+  // Hard redirect to guarantee state is cleared.
   window.location.href = '/';
 }
+
+onMounted(() => {
+  syncAuthState();
+  window.addEventListener('storage', syncAuthState);
+  window.addEventListener('quieter-auth-changed', syncAuthState);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('storage', syncAuthState);
+  window.removeEventListener('quieter-auth-changed', syncAuthState);
+});
 </script>
 
 <style scoped>

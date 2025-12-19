@@ -110,6 +110,7 @@ async function onSubmit() {
     if (data.accountId) {
       localStorage.setItem('quieterAccountId', data.accountId);
       localStorage.setItem('quieterEmail', email.value);
+      window.dispatchEvent(new Event('quieter-auth-changed'));
       // After successful signup, send the user to the dashboard
       router.push({ name: 'Dashboard' });
     }

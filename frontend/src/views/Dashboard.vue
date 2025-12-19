@@ -493,6 +493,7 @@ button:disabled {
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+  margin-top: 0.4rem;
 }
 
 .ghost {
