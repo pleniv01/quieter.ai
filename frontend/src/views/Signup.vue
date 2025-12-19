@@ -54,16 +54,20 @@
 
       <p v-if="error" class="error">{{ error }}</p>
 
-      <div v-if="apiKey" class="success">
+      <div v-if="apiKey" class="success" ref="successRef">
         <p><strong>Account created. Almost there!</strong></p>
         <p>
           Your Quieter.ai API key (for the browser extension):
           <code>{{ apiKey }}</code>
+          <button type="button" class="copy-btn" @click="copyKey">Copy</button>
         </p>
         <ol class="next-steps">
           <li>Copy the key above.</li>
-          <li>Install the Quieter browser extension.</li>
-          <li>Paste the key into the extension settings.</li>
+          <li>
+            Install the Quieter browser extension (open your browser’s extensions/add-ons store and
+            search “Quieter.ai”).
+          </li>
+          <li>Open the extension, paste the key into settings, and save.</li>
           <li>Click “Continue to Stripe” to activate your subscription (500 credits included).</li>
         </ol>
         <p class="hint">
@@ -79,7 +83,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, nextTick } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 
 const apiBase = import.meta.env.VITE_API_BASE_URL;
@@ -92,6 +96,7 @@ const loading = ref(false);
 const error = ref('');
 const apiKey = ref('');
 const checkoutUrl = ref('');
+const successRef = ref(null);
 
 async function onSubmit() {
   error.value = '';
@@ -122,6 +127,10 @@ async function onSubmit() {
         router.push({ name: 'Dashboard' });
       }
     }
+    await nextTick();
+    if (apiKey.value && successRef.value) {
+      successRef.value.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   } catch (e) {
     console.error(e);
     error.value = e.message || 'Signup failed.';
@@ -133,6 +142,16 @@ async function onSubmit() {
 function goToStripe() {
   if (checkoutUrl.value) {
     window.location.href = checkoutUrl.value;
+  }
+}
+
+async function copyKey() {
+  try {
+    if (apiKey.value) {
+      await navigator.clipboard.writeText(apiKey.value);
+    }
+  } catch (e) {
+    console.error('Failed to copy API key', e);
   }
 }
 </script>
@@ -232,6 +251,16 @@ button:disabled {
   background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
   color: #111827;
   border: none;
+}
+
+.copy-btn {
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.8rem;
 }
 
 .error {
