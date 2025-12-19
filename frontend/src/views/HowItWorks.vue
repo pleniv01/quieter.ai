@@ -8,7 +8,11 @@
         a base bundle and add top-ups whenever you need more.
       </p>
       <div class="actions">
-        <RouterLink to="/signup" class="btn primary">Create an account</RouterLink>
+        <RouterLink v-if="isAuthed" to="/dashboard" class="btn primary">Go to dashboard</RouterLink>
+        <template v-else>
+          <RouterLink to="/signup" class="btn primary">Create an account</RouterLink>
+          <RouterLink to="/login" class="btn ghost">Log in</RouterLink>
+        </template>
         <RouterLink to="/pricing" class="btn ghost">See pricing</RouterLink>
       </div>
     </header>
@@ -32,10 +36,11 @@
       </div>
       <div class="step">
         <p class="eyebrow">Step 3</p>
-        <h2>Add credits</h2>
+        <h2>Subscribe, then top up anytime</h2>
         <p class="muted">
-          From the dashboard, subscribe for a monthly bundle (500 credits) or buy a one-time top-up
-          (1000 credits). Credits deduct as you use the service.
+          From the dashboard, start your monthly subscription (500 credits included, billed monthly).
+          When you need more, add top-ups (1000 credits each) as often as you like—no extra renewal
+          required.
         </p>
       </div>
       <div class="step">
@@ -58,7 +63,24 @@
 </template>
 
 <script setup>
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 import { RouterLink } from 'vue-router';
+
+const isAuthed = ref(false);
+const syncAuthState = () => {
+  isAuthed.value = Boolean(localStorage.getItem('quieterAccountId'));
+};
+
+onMounted(() => {
+  syncAuthState();
+  window.addEventListener('storage', syncAuthState);
+  window.addEventListener('quieter-auth-changed', syncAuthState);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('storage', syncAuthState);
+  window.removeEventListener('quieter-auth-changed', syncAuthState);
+});
 </script>
 
 <style scoped>
