@@ -40,6 +40,22 @@
         <strong>Email:</strong> {{ account.email }}<br />
         <strong>ID:</strong> <code>{{ account.id }}</code>
       </p>
+      <div class="actions-row">
+        <button @click="resetPassword(account.id)" :disabled="resettingPw">Reset password</button>
+        <button @click="rotateApiKey(account.id)" :disabled="rotatingKey">Rotate API key</button>
+        <span v-if="rotatedKey" class="muted">New key: <code>{{ rotatedKey }}</code></span>
+      </div>
+
+      <div v-if="usageSummary" class="usage-box">
+        <h3>Usage summary</h3>
+        <p class="muted">
+          Requests: {{ usageSummary.totalRequests }} |
+          Tokens: {{ usageSummary.totalTokens.toLocaleString() }} |
+          Redactions: {{ usageSummary.totalRedactions }}<br />
+          Provider cost: ${{ (usageSummary.providerCostCents / 100).toFixed(2) }} |
+          Billed (est): ${{ (usageSummary.billedCents / 100).toFixed(2) }}
+        </p>
+      </div>
 
       <h3>Tenants</h3>
       <p v-if="!tenants.length" class="muted">No tenants for this account yet.</p>
@@ -123,6 +139,10 @@ const createTenant = ref('');
 const creating = ref(false);
 const createResult = ref(null);
 const deletingId = ref('');
+const usageSummary = ref(null);
+const resettingPw = ref(false);
+const rotatingKey = ref(false);
+const rotatedKey = ref('');
 
 function findCredits(tenantId) {
   const b = balances.value.find(b => b.tenant_id === tenantId);
@@ -138,6 +158,28 @@ function formatDate(dt) {
 function formatCredits(n) {
   const num = Number(n || 0);
   return `${num.toLocaleString()} credits`;
+}
+
+async function fetchUsage(accountId) {
+  usageSummary.value = null;
+  try {
+    const token = localStorage.getItem('quieterAdminToken') || '';
+    if (!token) {
+      error.value = 'No admin token stored. Go back to /admin and log in.';
+      return;
+    }
+    const res = await fetch(`${apiBase}/admin/accounts/${accountId}/usage`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || `Usage fetch failed (${res.status})`);
+    }
+    usageSummary.value = data.usage || null;
+  } catch (e) {
+    console.error(e);
+    error.value = e.message || 'Usage fetch failed.';
+  }
 }
 
 async function lookup() {
@@ -167,6 +209,9 @@ async function lookup() {
     account.value = data.account || null;
     tenants.value = data.tenants || [];
     balances.value = data.balances || [];
+    if (account.value?.id) {
+      await fetchUsage(account.value.id);
+    }
   } catch (e) {
     console.error(e);
     error.value = e.message || 'Lookup failed.';
@@ -201,6 +246,70 @@ async function loadList() {
     error.value = e.message || 'List failed.';
   } finally {
     loadingList.value = false;
+  }
+}
+
+async function resetPassword(accountId) {
+  const newPw = window.prompt('Enter new password for this account:');
+  if (!newPw) return;
+  resettingPw.value = true;
+  error.value = '';
+  try {
+    const token = localStorage.getItem('quieterAdminToken') || '';
+    if (!token) {
+      error.value = 'No admin token stored. Go back to /admin and log in.';
+      resettingPw.value = false;
+      return;
+    }
+    const res = await fetch(`${apiBase}/admin/accounts/${accountId}/password`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ password: newPw }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || `Reset failed (${res.status})`);
+    }
+    alert('Password reset.');
+  } catch (e) {
+    console.error(e);
+    error.value = e.message || 'Reset failed.';
+  } finally {
+    resettingPw.value = false;
+  }
+}
+
+async function rotateApiKey(accountId) {
+  rotatingKey.value = true;
+  rotatedKey.value = '';
+  error.value = '';
+  try {
+    const token = localStorage.getItem('quieterAdminToken') || '';
+    if (!token) {
+      error.value = 'No admin token stored. Go back to /admin and log in.';
+      rotatingKey.value = false;
+      return;
+    }
+    const res = await fetch(`${apiBase}/admin/accounts/${accountId}/api-key`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || `Rotate failed (${res.status})`);
+    }
+    rotatedKey.value = data.apiKey || '';
+    alert(`New API key: ${rotatedKey.value}`);
+  } catch (e) {
+    console.error(e);
+    error.value = e.message || 'Rotate failed.';
+  } finally {
+    rotatingKey.value = false;
   }
 }
 
@@ -338,6 +447,22 @@ async function deleteAccount(id) {
 .muted {
   color: var(--color-text-muted);
   font-size: 0.9rem;
+}
+
+.actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.usage-box {
+  margin-bottom: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px dashed var(--color-border);
+  border-radius: 10px;
+  background: #f9fafb;
 }
 
 .create-card {

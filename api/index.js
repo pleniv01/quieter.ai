@@ -35,6 +35,12 @@ const billingCancelUrl =
   process.env.BILLING_CANCEL_URL || 'https://quieter.ai/dashboard?billing=cancel';
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || null;
+const adminEmails = new Set(
+  (process.env.ADMIN_EMAILS || '')
+    .split(',')
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean)
+);
 
 // Simple mail transport; if SMTP_URL is not set we just log instead of sending.
 let mailTransport = null;
@@ -1117,14 +1123,45 @@ function requireAdmin(req, res, next) {
 
 // Minimal admin login: verify provided token matches ADMIN_TOKEN, purely for UI convenience.
 app.post('/admin/login', (req, res) => {
-  const { token } = req.body || {};
+  const { token, email, password } = req.body || {};
   if (!ADMIN_TOKEN) {
     return res.status(503).json({ ok: false, error: 'Admin is not configured' });
   }
-  if (!token || token !== ADMIN_TOKEN) {
-    return res.status(401).json({ ok: false, error: 'Invalid admin token' });
+
+  // Path 1: shared admin token
+  if (token) {
+    if (token !== ADMIN_TOKEN) {
+      return res.status(401).json({ ok: false, error: 'Invalid admin token' });
+    }
+    return res.json({ ok: true, token: ADMIN_TOKEN });
   }
-  return res.json({ ok: true });
+
+  // Path 2: email/password for allowlisted admins
+  if (email && password) {
+    const normalizedEmail = String(email).toLowerCase().trim();
+    if (!adminEmails.has(normalizedEmail)) {
+      return res.status(401).json({ ok: false, error: 'Not an admin account' });
+    }
+    return pool
+      .query('SELECT id, password_hash FROM accounts WHERE email = $1 LIMIT 1', [normalizedEmail])
+      .then(async (result) => {
+        if (!result.rows.length) {
+          return res.status(401).json({ ok: false, error: 'Invalid credentials' });
+        }
+        const row = result.rows[0];
+        const valid = await bcrypt.compare(password, row.password_hash);
+        if (!valid) {
+          return res.status(401).json({ ok: false, error: 'Invalid credentials' });
+        }
+        return res.json({ ok: true, token: ADMIN_TOKEN });
+      })
+      .catch((err) => {
+        console.error('Admin login error', err);
+        return res.status(500).json({ ok: false, error: 'Admin login failed' });
+      });
+  }
+
+  return res.status(400).json({ ok: false, error: 'Provide token or email/password' });
 });
 
 // List models
@@ -1368,6 +1405,81 @@ app.delete('/admin/accounts/:id', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('Admin delete account error', err);
     return res.status(500).json({ ok: false, error: 'Could not delete account' });
+  }
+});
+
+// Admin: reset password for an account
+app.post('/admin/accounts/:id/password', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params || {};
+    const { password } = req.body || {};
+    if (!id || !password) {
+      return res.status(400).json({ ok: false, error: 'id and password are required' });
+    }
+    const passwordHash = await bcrypt.hash(String(password), 12);
+    await pool.query('UPDATE accounts SET password_hash = $1 WHERE id = $2', [passwordHash, id]);
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Admin reset password error', err);
+    return res.status(500).json({ ok: false, error: 'Could not reset password' });
+  }
+});
+
+// Admin: rotate API key for an account's primary tenant (first tenant)
+app.post('/admin/accounts/:id/api-key', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params || {};
+    if (!id) {
+      return res.status(400).json({ ok: false, error: 'id is required' });
+    }
+    const tenantRes = await pool.query('SELECT id FROM tenants WHERE account_id = $1 ORDER BY created_at ASC LIMIT 1', [id]);
+    if (!tenantRes.rows.length) {
+      return res.status(404).json({ ok: false, error: 'No tenant found for this account' });
+    }
+    const tenantId = tenantRes.rows[0].id;
+    const rawApiKey = 'qtr_' + crypto.randomBytes(24).toString('base64url');
+    const apiKeyHash = hashApiKey(rawApiKey);
+    await pool.query('UPDATE tenants SET api_key_hash = $1 WHERE id = $2', [apiKeyHash, tenantId]);
+    return res.json({ ok: true, apiKey: rawApiKey, tenantId });
+  } catch (err) {
+    console.error('Admin rotate API key error', err);
+    return res.status(500).json({ ok: false, error: 'Could not rotate API key' });
+  }
+});
+
+// Admin: usage summary per account (simple aggregation)
+app.get('/admin/accounts/:id/usage', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params || {};
+    if (!id) {
+      return res.status(400).json({ ok: false, error: 'id is required' });
+    }
+    const usageRes = await pool.query(
+      `SELECT
+         COUNT(*) AS total_requests,
+         COALESCE(SUM(total_tokens),0) AS total_tokens,
+         COALESCE(SUM(redactions_count),0) AS total_redactions,
+         COALESCE(SUM(provider_cost_cents),0) AS provider_cost_cents,
+         COALESCE(SUM(billed_cents),0) AS billed_cents
+       FROM usage_logs u
+       JOIN tenants t ON u.tenant_id = t.id
+       WHERE t.account_id = $1`,
+      [id]
+    );
+    const row = usageRes.rows[0] || {};
+    return res.json({
+      ok: true,
+      usage: {
+        totalRequests: Number(row.total_requests || 0),
+        totalTokens: Number(row.total_tokens || 0),
+        totalRedactions: Number(row.total_redactions || 0),
+        providerCostCents: Number(row.provider_cost_cents || 0),
+        billedCents: Number(row.billed_cents || 0),
+      },
+    });
+  } catch (err) {
+    console.error('Admin usage summary error', err);
+    return res.status(500).json({ ok: false, error: 'Could not load usage' });
   }
 });
 
