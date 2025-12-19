@@ -86,12 +86,23 @@
           <strong>Last payment:</strong> none recorded yet.
         </p>
         <p class="billing-note">
-          This is a rough view of your prepaid balance. As you send requests through your
-          Quieter.ai API key, the billed amount is deducted here.
+          Base plan: ${{ (subscriptionPriceCents / 100).toFixed(2) }}/mo includes
+          {{ subscriptionCredits }} credits. Top-ups: ${{ (topupPriceCents / 100).toFixed(2) }} for
+          {{ topupCredits }} credits.
         </p>
-        <button type="button" class="secondary" @click="startCheckout" :disabled="startingCheckout">
-          {{ startingCheckout ? 'Redirecting to Stripe…' : 'Buy credits (subscribe)' }}
-        </button>
+        <div class="billing-actions">
+          <button
+            type="button"
+            class="secondary"
+            @click="startSubscription"
+            :disabled="startingSubscription"
+          >
+            {{ startingSubscription ? 'Redirecting…' : `Subscribe ($${(subscriptionPriceCents / 100).toFixed(2)}/mo)` }}
+          </button>
+          <button type="button" class="ghost" @click="startTopup" :disabled="startingTopup">
+            {{ startingTopup ? 'Redirecting…' : `Top up ${topupCredits} credits ($${(topupPriceCents / 100).toFixed(2)})` }}
+          </button>
+        </div>
       </div>
 
       <div v-if="report" class="report-card">
@@ -176,7 +187,14 @@ const report = ref(null);
 const loadingReport = ref(false);
 const reportError = ref('');
 
-const startingCheckout = ref(false);
+// Pricing (edit here to adjust displayed copy; backend uses env vars)
+const subscriptionPriceCents = 995;
+const subscriptionCredits = 500;
+const topupPriceCents = 995;
+const topupCredits = 1000;
+
+const startingSubscription = ref(false);
+const startingTopup = ref(false);
 
 const lastPayment = ref(null);
 const loadingBilling = ref(false);
@@ -257,25 +275,54 @@ async function loadBilling() {
 }
 
 async function startCheckout() {
+  // Deprecated single-flow handler (kept for safety)
+  await startSubscription();
+}
+
+async function startSubscription() {
   if (!accountId.value) return;
-  startingCheckout.value = true;
+  startingSubscription.value = true;
   try {
     const res = await fetch(`${apiBase}/billing/create-checkout-session`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ accountId: accountId.value }),
+      body: JSON.stringify({ accountId: accountId.value, kind: 'subscription' }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok || !data.url) {
       console.error('Failed to create checkout session', data);
-      startingCheckout.value = false;
+      startingSubscription.value = false;
       return;
     }
     window.location.href = data.url;
   } catch (e) {
     console.error(e);
   } finally {
-    // We intentionally do not reset startingCheckout here in the happy path because we expect a redirect.
+    // We intentionally do not reset startingSubscription here in the happy path because we expect a redirect.
+    // If the call fails, it is reset above.
+  }
+}
+
+async function startTopup() {
+  if (!accountId.value) return;
+  startingTopup.value = true;
+  try {
+    const res = await fetch(`${apiBase}/billing/create-checkout-session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId: accountId.value, kind: 'topup' }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok || !data.url) {
+      console.error('Failed to create top-up session', data);
+      startingTopup.value = false;
+      return;
+    }
+    window.location.href = data.url;
+  } catch (e) {
+    console.error(e);
+  } finally {
+    // We intentionally do not reset startingTopup here in the happy path because we expect a redirect.
     // If the call fails, it is reset above.
   }
 }
@@ -434,6 +481,24 @@ button {
 button:disabled {
   opacity: 0.7;
   cursor: default;
+}
+
+.billing-note {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  margin: 0.4rem 0 0.8rem;
+}
+
+.billing-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.ghost {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
 }
 
 .error {

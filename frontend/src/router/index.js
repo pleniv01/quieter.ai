@@ -10,6 +10,7 @@ import ApiKeyGuide from '../views/ApiKeyGuide.vue';
 import AdminLogin from '../views/AdminLogin.vue';
 import AdminModels from '../views/AdminModels.vue';
 import AdminAccounts from '../views/AdminAccounts.vue';
+import Pricing from '../views/Pricing.vue';
 
 const routes = [
   { path: '/', name: 'Home', component: Home },
@@ -17,6 +18,7 @@ const routes = [
   { path: '/privacy-policy', name: 'PrivacyPolicy', component: PrivacyPolicy },
   { path: '/signup', name: 'Signup', component: Signup },
   { path: '/login', name: 'Login', component: Login },
+  { path: '/pricing', name: 'Pricing', component: Pricing },
   { path: '/dashboard', name: 'Dashboard', component: Dashboard },
   { path: '/developers', name: 'Developers', component: Developers },
   { path: '/docs/how-to-use-quieter-api-key', name: 'ApiKeyGuide', component: ApiKeyGuide },

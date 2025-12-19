@@ -9,6 +9,7 @@
     </RouterLink>
 
     <nav class="nav">
+      <RouterLink to="/pricing" class="nav-link">Pricing</RouterLink>
       <RouterLink to="/privacy" class="nav-link">Privacy</RouterLink>
       <RouterLink to="/developers" class="nav-link">Open source</RouterLink>
       <RouterLink to="/dashboard" class="nav-link">Dashboard</RouterLink>

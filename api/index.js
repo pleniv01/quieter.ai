@@ -18,10 +18,16 @@ const anthropic = new Anthropic({
 });
 
 const stripeSecret = process.env.STRIPE_SECRET_KEY || null;
-const stripePriceId = process.env.STRIPE_PRICE_ID || null;
+const stripeSubPriceId =
+  process.env.STRIPE_SUB_PRICE_ID || process.env.STRIPE_PRICE_ID || null; // backward compatible
+const stripeTopupPriceId = process.env.STRIPE_TOPUP_PRICE_ID || null;
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || null;
 const stripe = stripeSecret ? new Stripe(stripeSecret) : null;
-const stripeCheckoutMode = process.env.STRIPE_CHECKOUT_MODE || 'subscription'; // 'subscription' | 'payment'
+const stripeCheckoutMode = process.env.STRIPE_CHECKOUT_MODE || 'subscription'; // default for main CTA
+
+// Credit grants (editable without code changes)
+const subscriptionCredits = Number(process.env.SUBSCRIPTION_CREDITS || 500);
+const topupCredits = Number(process.env.TOPUP_CREDITS || 1000);
 
 const billingSuccessUrl =
   process.env.BILLING_SUCCESS_URL || 'https://quieter.ai/dashboard?billing=success';
@@ -91,20 +97,18 @@ app.post('/billing/webhook', express.raw({ type: 'application/json' }), async (r
     }
 
     // Credit top-ups:
-    // - one-time purchases: handled via checkout.session.completed (mode=payment)
+    // - one-time purchases: handled via checkout.session.completed (mode=payment/top-up)
     // - subscriptions: handled via invoice.paid (avoid double-crediting by ignoring checkout completion for subscriptions)
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
 
-      // Only credit balances for one-time payments (credit packs).
+      // Only credit balances for one-time payments (top-ups).
       if (session.mode && session.mode !== 'payment') {
         return res.json({ ok: true });
       }
 
-      const amountCents = Number(session.amount_total ?? 0);
-      if (!Number.isFinite(amountCents) || amountCents <= 0) {
-        return res.json({ ok: true });
-      }
+      const creditGrant =
+        Number(session.metadata?.credits || session.metadata?.credit_amount) || topupCredits || 0;
 
       const email = session.customer_email || session.customer_details?.email || null;
       let accountId = session.metadata?.accountId || session.client_reference_id || null;
@@ -135,7 +139,7 @@ app.post('/billing/webhook', express.raw({ type: 'application/json' }), async (r
             event.id,
             session.id || null,
             event.type,
-            amountCents,
+            Number(session.amount_total ?? 0),
             session.currency || 'usd',
             Number(event.created || 0),
           ]
@@ -152,7 +156,7 @@ app.post('/billing/webhook', express.raw({ type: 'application/json' }), async (r
         if (tenantIds.length) {
           await pool.query(
             'UPDATE balances SET credits_remaining = COALESCE(credits_remaining,0) + $1, plan = $2, updated_at = NOW() WHERE tenant_id = ANY($3::text[])',
-            [amountCents, 'quieter-hosted', tenantIds]
+            [creditGrant, 'quieter-hosted', tenantIds]
           );
         }
       } catch (e) {
@@ -164,6 +168,14 @@ app.post('/billing/webhook', express.raw({ type: 'application/json' }), async (r
       const invoice = event.data.object;
       const amountCents = Number(invoice.amount_paid ?? 0);
       if (!Number.isFinite(amountCents) || amountCents <= 0) {
+        return res.json({ ok: true });
+      }
+
+      const creditGrant = subscriptionCredits || 0;
+
+      // Ensure this invoice corresponds to the subscription price we expect (avoid crediting unrelated items).
+      const priceIds = (invoice.lines?.data || []).map((l) => l.price?.id).filter(Boolean);
+      if (stripeSubPriceId && priceIds.length && !priceIds.includes(stripeSubPriceId)) {
         return res.json({ ok: true });
       }
 
@@ -220,7 +232,7 @@ app.post('/billing/webhook', express.raw({ type: 'application/json' }), async (r
         if (tenantIds.length) {
           await pool.query(
             'UPDATE balances SET credits_remaining = COALESCE(credits_remaining,0) + $1, plan = $2, updated_at = NOW() WHERE tenant_id = ANY($3::text[])',
-            [amountCents, 'quieter-hosted', tenantIds]
+            [creditGrant, 'quieter-hosted', tenantIds]
           );
         }
       } catch (e) {
@@ -248,15 +260,26 @@ app.get('/health', async (req, res) => {
 });
 
 // --- Billing (Stripe test integration) ---
+// Checkout session for subscription (default) or top-up.
 app.post('/billing/create-checkout-session', async (req, res) => {
   try {
-    if (!stripe || !stripePriceId) {
+    if (!stripe) {
       return res.status(503).json({ ok: false, error: 'Billing is not configured' });
     }
 
-    const { accountId } = req.body || {};
+    const { accountId, kind } = req.body || {};
     if (!accountId) {
       return res.status(400).json({ ok: false, error: 'accountId is required' });
+    }
+
+    const normalizedKind = kind === 'topup' ? 'topup' : 'subscription';
+    const priceId =
+      normalizedKind === 'topup'
+        ? stripeTopupPriceId
+        : stripeSubPriceId || stripeTopupPriceId || null;
+
+    if (!priceId) {
+      return res.status(503).json({ ok: false, error: 'Billing is not configured' });
     }
 
     // Look up the account email for nicer Stripe receipts and/or customer creation.
@@ -279,19 +302,32 @@ app.post('/billing/create-checkout-session', async (req, res) => {
       ]);
     }
 
-    const mode = stripeCheckoutMode === 'payment' ? 'payment' : 'subscription';
+    const mode =
+      normalizedKind === 'topup'
+        ? 'payment'
+        : stripeCheckoutMode === 'payment'
+          ? 'payment'
+          : 'subscription';
+
+    const credits =
+      normalizedKind === 'topup'
+        ? topupCredits
+        : subscriptionCredits || (stripeCheckoutMode === 'payment' ? topupCredits : subscriptionCredits);
+
     const session = await stripe.checkout.sessions.create({
       mode,
       line_items: [
         {
-          price: stripePriceId,
+          price: priceId,
           quantity: 1,
         },
       ],
       client_reference_id: accountId,
-      metadata: { accountId },
+      metadata: { accountId, kind: normalizedKind, credits: credits || undefined },
       customer: stripeCustomerId,
-      ...(mode === 'subscription' ? { subscription_data: { metadata: { accountId } } } : {}),
+      ...(mode === 'subscription'
+        ? { subscription_data: { metadata: { accountId, kind: normalizedKind, credits } } }
+        : {}),
       success_url: billingSuccessUrl,
       cancel_url: billingCancelUrl,
     });
