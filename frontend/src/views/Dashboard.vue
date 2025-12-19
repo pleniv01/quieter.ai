@@ -110,13 +110,16 @@
 
       <div v-if="report" class="report-card">
         <h2>Usage report (current)</h2>
+        <p class="report-note">
+          This reflects estimated provider usage. It does not include your subscription or top-ups.
+        </p>
         <p>
           <strong>Conversations shielded:</strong> {{ report.totalRequests }}<br />
           <strong>Approx. private tokens:</strong> {{ report.totalTokens }}<br />
           <strong>Redactions applied:</strong> {{ report.totalRedactions }}<br />
           <strong>Estimated provider cost:</strong>
           ${{ (report.providerCostCents / 100).toFixed(2) }}<br />
-          <strong>Your billed amount:</strong>
+          <strong>Provider billing (estimated):</strong>
           ${{ (report.billedCents / 100).toFixed(2) }}
         </p>
       </div>
