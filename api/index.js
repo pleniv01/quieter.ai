@@ -1483,6 +1483,33 @@ app.get('/admin/accounts/:id/usage', requireAdmin, async (req, res) => {
   }
 });
 
+// Admin: per-model usage breakdown for an account
+app.get('/admin/accounts/:id/usage/models', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params || {};
+    if (!id) {
+      return res.status(400).json({ ok: false, error: 'id is required' });
+    }
+    const usageRes = await pool.query(
+      `SELECT u.model_config_id,
+              COUNT(*) AS total_requests,
+              COALESCE(SUM(total_tokens),0) AS total_tokens,
+              COALESCE(SUM(provider_cost_cents),0) AS provider_cost_cents,
+              COALESCE(SUM(billed_cents),0) AS billed_cents
+       FROM usage_logs u
+       JOIN tenants t ON u.tenant_id = t.id
+       WHERE t.account_id = $1
+       GROUP BY u.model_config_id
+       ORDER BY COALESCE(SUM(total_tokens),0) DESC`,
+      [id]
+    );
+    return res.json({ ok: true, models: usageRes.rows });
+  } catch (err) {
+    console.error('Admin model usage error', err);
+    return res.status(500).json({ ok: false, error: 'Could not load model usage' });
+  }
+});
+
 // Admin: send a one-off usage report email to a given account
 app.post('/admin/send-report', requireAdmin, async (req, res) => {
   try {

@@ -57,6 +57,28 @@
         </p>
       </div>
 
+      <div v-if="modelUsage.length" class="usage-box">
+        <h3>Usage by model</h3>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Requests</th>
+              <th>Tokens</th>
+              <th>Provider cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="m in modelUsage" :key="m.model_config_id || 'unknown'">
+              <td>{{ m.model_config_id || 'unknown' }}</td>
+              <td>{{ m.total_requests }}</td>
+              <td>{{ Number(m.total_tokens || 0).toLocaleString() }}</td>
+              <td>${{ (Number(m.provider_cost_cents || 0) / 100).toFixed(2) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
       <h3>Tenants</h3>
       <p v-if="!tenants.length" class="muted">No tenants for this account yet.</p>
       <table v-else class="table">
@@ -143,6 +165,7 @@ const usageSummary = ref(null);
 const resettingPw = ref(false);
 const rotatingKey = ref(false);
 const rotatedKey = ref('');
+const modelUsage = ref([]);
 
 function findCredits(tenantId) {
   const b = balances.value.find(b => b.tenant_id === tenantId);
@@ -162,6 +185,7 @@ function formatCredits(n) {
 
 async function fetchUsage(accountId) {
   usageSummary.value = null;
+  modelUsage.value = [];
   try {
     const token = localStorage.getItem('quieterAdminToken') || '';
     if (!token) {
@@ -176,9 +200,26 @@ async function fetchUsage(accountId) {
       throw new Error(data.error || `Usage fetch failed (${res.status})`);
     }
     usageSummary.value = data.usage || null;
+    await fetchModelUsage(accountId, token);
   } catch (e) {
     console.error(e);
     error.value = e.message || 'Usage fetch failed.';
+  }
+}
+
+async function fetchModelUsage(accountId, token) {
+  try {
+    const res = await fetch(`${apiBase}/admin/accounts/${accountId}/usage/models`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || `Model usage fetch failed (${res.status})`);
+    }
+    modelUsage.value = data.models || [];
+  } catch (e) {
+    console.error(e);
+    error.value = e.message || 'Model usage fetch failed.';
   }
 }
 
