@@ -1510,6 +1510,78 @@ app.get('/admin/accounts/:id/usage/models', requireAdmin, async (req, res) => {
   }
 });
 
+// Admin: export usage logs (CSV) for an account
+app.get('/admin/accounts/:id/usage/export', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params || {};
+    if (!id) {
+      return res.status(400).json({ ok: false, error: 'id is required' });
+    }
+    const limit = Math.min(Number(req.query.limit) || 5000, 20000);
+    const usageRes = await pool.query(
+      `SELECT u.id, u.created_at, u.model_config_id, u.total_tokens, u.redactions_count,
+              u.provider_cost_cents, u.billed_cents, u.status, u.tenant_id
+       FROM usage_logs u
+       JOIN tenants t ON u.tenant_id = t.id
+       WHERE t.account_id = $1
+       ORDER BY u.created_at DESC
+       LIMIT $2`,
+      [id, limit]
+    );
+    const rows = usageRes.rows || [];
+    const header = [
+      'id',
+      'created_at',
+      'model_config_id',
+      'total_tokens',
+      'redactions_count',
+      'provider_cost_cents',
+      'billed_cents',
+      'status',
+      'tenant_id',
+    ];
+    const csvLines = [header.join(',')];
+    for (const r of rows) {
+      const fields = header.map((key) => {
+        const val = r[key];
+        if (val === null || val === undefined) return '';
+        const s = String(val).replace(/"/g, '""');
+        return `"${s}"`;
+      });
+      csvLines.push(fields.join(','));
+    }
+    const csv = csvLines.join('\n');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="usage-${id}.csv"`);
+    return res.send(csv);
+  } catch (err) {
+    console.error('Admin usage export error', err);
+    return res.status(500).json({ ok: false, error: 'Could not export usage' });
+  }
+});
+
+// Admin: per-model usage breakdown for an account
+// Admin: rotate API key for a specific tenant
+app.post('/admin/tenants/:id/api-key', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params || {};
+    if (!id) {
+      return res.status(400).json({ ok: false, error: 'id is required' });
+    }
+    const tenantRes = await pool.query('SELECT id FROM tenants WHERE id = $1 LIMIT 1', [id]);
+    if (!tenantRes.rows.length) {
+      return res.status(404).json({ ok: false, error: 'Tenant not found' });
+    }
+    const rawApiKey = 'qtr_' + crypto.randomBytes(24).toString('base64url');
+    const apiKeyHash = hashApiKey(rawApiKey);
+    await pool.query('UPDATE tenants SET api_key_hash = $1 WHERE id = $2', [apiKeyHash, id]);
+    return res.json({ ok: true, apiKey: rawApiKey, tenantId: id });
+  } catch (err) {
+    console.error('Admin rotate tenant API key error', err);
+    return res.status(500).json({ ok: false, error: 'Could not rotate tenant API key' });
+  }
+});
+
 // Admin: send a one-off usage report email to a given account
 app.post('/admin/send-report', requireAdmin, async (req, res) => {
   try {

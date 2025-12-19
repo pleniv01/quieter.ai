@@ -79,6 +79,13 @@
         </table>
       </div>
 
+      <div class="actions-row">
+        <button class="secondary" @click="exportUsage(account.id)" :disabled="exporting">
+          {{ exporting ? 'Exporting…' : 'Export usage CSV' }}
+        </button>
+        <span v-if="exportError" class="error">{{ exportError }}</span>
+      </div>
+
       <h3>Tenants</h3>
       <p v-if="!tenants.length" class="muted">No tenants for this account yet.</p>
       <table v-else class="table">
@@ -88,6 +95,7 @@
             <th>Tenant ID</th>
             <th>Plan</th>
             <th>Credits remaining (¢)</th>
+            <th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -96,6 +104,11 @@
             <td><code>{{ t.id }}</code></td>
             <td>{{ t.plan }}</td>
             <td>{{ findCredits(t.id) }}</td>
+            <td>
+              <button class="secondary" @click="rotateTenantKey(t.id)" :disabled="rotatingTenantId === t.id">
+                {{ rotatingTenantId === t.id ? 'Rotating…' : 'Rotate key' }}
+              </button>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -166,6 +179,9 @@ const resettingPw = ref(false);
 const rotatingKey = ref(false);
 const rotatedKey = ref('');
 const modelUsage = ref([]);
+const rotatingTenantId = ref('');
+const exporting = ref(false);
+const exportError = ref('');
 
 function findCredits(tenantId) {
   const b = balances.value.find(b => b.tenant_id === tenantId);
@@ -351,6 +367,69 @@ async function rotateApiKey(accountId) {
     error.value = e.message || 'Rotate failed.';
   } finally {
     rotatingKey.value = false;
+  }
+}
+
+async function rotateTenantKey(tenantId) {
+  rotatingTenantId.value = tenantId;
+  rotatedKey.value = '';
+  error.value = '';
+  try {
+    const token = localStorage.getItem('quieterAdminToken') || '';
+    if (!token) {
+      error.value = 'No admin token stored. Go back to /admin and log in.';
+      rotatingTenantId.value = '';
+      return;
+    }
+    const res = await fetch(`${apiBase}/admin/tenants/${tenantId}/api-key`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || `Rotate failed (${res.status})`);
+    }
+    rotatedKey.value = data.apiKey || '';
+    alert(`New API key: ${rotatedKey.value}`);
+  } catch (e) {
+    console.error(e);
+    error.value = e.message || 'Rotate failed.';
+  } finally {
+    rotatingTenantId.value = '';
+  }
+}
+
+async function exportUsage(accountId) {
+  exporting.value = true;
+  exportError.value = '';
+  try {
+    const token = localStorage.getItem('quieterAdminToken') || '';
+    if (!token) {
+      exportError.value = 'No admin token stored. Go back to /admin and log in.';
+      exporting.value = false;
+      return;
+    }
+    const res = await fetch(`${apiBase}/admin/accounts/${accountId}/usage/export`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `Export failed (${res.status})`);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `usage-${accountId}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    console.error(e);
+    exportError.value = e.message || 'Export failed.';
+  } finally {
+    exporting.value = false;
   }
 }
 
