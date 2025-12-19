@@ -69,11 +69,13 @@
         <h2>Billing & plan</h2>
         <p>
           <strong>Plan:</strong>
-          <span v-if="usage.plan && usage.plan.toLowerCase() !== 'dev'">{{ usage.plan }}</span>
-          <span v-else>Not active yet</span>
+          <span v-if="usage.plan && usage.plan.toLowerCase() !== 'dev'">
+            {{ usage.plan === 'quieter-hosted' ? 'Quieter Hosted' : usage.plan }}
+          </span>
+          <span v-else>None</span>
           <br />
           <strong>Credits remaining:</strong>
-          <span>${{ (usage.creditsRemainingCents / 100).toFixed(2) }}</span>
+          <span>{{ formatCredits(usage.creditsRemainingCents) }}</span>
         </p>
         <p v-if="lastPayment" class="billing-note">
           <strong>Last payment:</strong>
@@ -204,6 +206,13 @@ const billingStatus = ref(new URLSearchParams(window.location.search).get('billi
 const hasSubscription = computed(
   () => usage.value && usage.value.plan && usage.value.plan.toLowerCase() !== 'dev'
 );
+
+function formatCredits(cents) {
+  // Backend stores credits as integer units; in our pricing 1 cent = 1 credit.
+  const credits = Number(cents || 0);
+  if (!Number.isFinite(credits)) return '0 credits';
+  return `${credits.toLocaleString()} credits`;
+}
 
 async function fetchMe() {
   if (!accountId.value) return false;
