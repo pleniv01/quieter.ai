@@ -22,8 +22,8 @@
 
     <form class="card" @submit.prevent="onSubmit">
       <p class="blurb">
-        We’ll create a private account, issue your API key, and immediately start the subscription
-        checkout ($9.95/mo, includes 500 credits). You can then add top-ups (1000 credits) any time.
+        We’ll create a private account, issue your API key, and start the subscription checkout
+        ($9.95/mo, includes 500 credits). You can add top-ups (1000 credits) any time after that.
       </p>
       <label>
         Email
@@ -49,21 +49,30 @@
       </label>
 
       <button type="submit" :disabled="loading">
-        {{ loading ? 'Redirecting to Stripe…' : 'Sign up and subscribe' }}
+        {{ loading ? 'Preparing checkout…' : 'Sign up and subscribe' }}
       </button>
 
       <p v-if="error" class="error">{{ error }}</p>
 
       <div v-if="apiKey" class="success">
-        <p><strong>Account created.</strong></p>
+        <p><strong>Account created. Almost there!</strong></p>
         <p>
-          Here is your Quieter.ai API key:
+          Your Quieter.ai API key (for the browser extension):
           <code>{{ apiKey }}</code>
         </p>
+        <ol class="next-steps">
+          <li>Copy the key above.</li>
+          <li>Install the Quieter browser extension.</li>
+          <li>Paste the key into the extension settings.</li>
+          <li>Click “Continue to Stripe” to activate your subscription (500 credits included).</li>
+        </ol>
         <p class="hint">
-          Copy this somewhere safe. You’ll paste it into the Quieter browser extension or your own
-          apps so they can send requests through your Quieter shield.
+          After checkout, use Claude.ai (and other supported sites) in your browser with the extension
+          enabled—your requests will flow through Quieter.
         </p>
+        <button type="button" class="secondary" :disabled="!checkoutUrl" @click="goToStripe">
+          Continue to Stripe
+        </button>
       </div>
     </form>
   </section>
@@ -82,10 +91,12 @@ const tenantName = ref('');
 const loading = ref(false);
 const error = ref('');
 const apiKey = ref('');
+const checkoutUrl = ref('');
 
 async function onSubmit() {
   error.value = '';
   apiKey.value = '';
+  checkoutUrl.value = '';
   loading.value = true;
 
   try {
@@ -102,21 +113,26 @@ async function onSubmit() {
 
     const data = await res.json();
     apiKey.value = data.apiKey || '';
+    checkoutUrl.value = data.url || '';
     if (data.accountId) {
       localStorage.setItem('quieterAccountId', data.accountId);
       localStorage.setItem('quieterEmail', email.value);
       window.dispatchEvent(new Event('quieter-auth-changed'));
-      if (data.url) {
-        window.location.href = data.url;
-        return;
+      if (!data.url) {
+        router.push({ name: 'Dashboard' });
       }
-      router.push({ name: 'Dashboard' });
     }
   } catch (e) {
     console.error(e);
     error.value = e.message || 'Signup failed.';
   } finally {
     loading.value = false;
+  }
+}
+
+function goToStripe() {
+  if (checkoutUrl.value) {
+    window.location.href = checkoutUrl.value;
   }
 }
 </script>
@@ -200,6 +216,22 @@ button {
 button:disabled {
   opacity: 0.7;
   cursor: default;
+}
+
+.next-steps {
+  margin: 0.6rem 0 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.next-steps li {
+  margin-bottom: 0.3rem;
+}
+
+.secondary {
+  margin-top: 0.4rem;
+  background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
+  color: #111827;
+  border: none;
 }
 
 .error {
