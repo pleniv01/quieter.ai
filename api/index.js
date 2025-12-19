@@ -1254,6 +1254,123 @@ app.get('/admin/accounts', requireAdmin, async (req, res) => {
   }
 });
 
+// Admin: list accounts with summary (pagination)
+app.get('/admin/accounts/list', requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+
+    const accountsRes = await pool.query(
+      `SELECT id, email, created_at FROM accounts
+       ORDER BY created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+
+    const accounts = accountsRes.rows;
+    const accountIds = accounts.map((a) => a.id);
+
+    // Aggregate balances per account
+    const balancesRes = await pool.query(
+      `SELECT t.account_id, COALESCE(SUM(b.credits_remaining),0) AS credits
+       FROM balances b
+       JOIN tenants t ON b.tenant_id = t.id
+       WHERE t.account_id = ANY($1::text[])
+       GROUP BY t.account_id`,
+      [accountIds]
+    );
+    const balanceMap = new Map(balancesRes.rows.map((r) => [r.account_id, Number(r.credits || 0)]));
+
+    // Tenant counts
+    const tenantCountsRes = await pool.query(
+      `SELECT account_id, COUNT(*) AS tenant_count
+       FROM tenants
+       WHERE account_id = ANY($1::text[])
+       GROUP BY account_id`,
+      [accountIds]
+    );
+    const tenantCountMap = new Map(
+      tenantCountsRes.rows.map((r) => [r.account_id, Number(r.tenant_count || 0)])
+    );
+
+    // Last payment per account
+    const paymentsRes = await pool.query(
+      `SELECT account_id, MAX(COALESCE(stripe_created_at, created_at)) AS last_payment_at
+       FROM stripe_payments
+       WHERE account_id = ANY($1::text[])
+       GROUP BY account_id`,
+      [accountIds]
+    );
+    const paymentMap = new Map(
+      paymentsRes.rows.map((r) => [r.account_id, r.last_payment_at || null])
+    );
+
+    // Last usage per account
+    const usageRes = await pool.query(
+      `SELECT t.account_id, MAX(u.created_at) AS last_usage_at
+       FROM usage_logs u
+       JOIN tenants t ON u.tenant_id = t.id
+       WHERE t.account_id = ANY($1::text[])
+       GROUP BY t.account_id`,
+      [accountIds]
+    );
+    const usageMap = new Map(
+      usageRes.rows.map((r) => [r.account_id, r.last_usage_at || null])
+    );
+
+    const results = accounts.map((a) => ({
+      id: a.id,
+      email: a.email,
+      createdAt: a.created_at,
+      credits: balanceMap.get(a.id) || 0,
+      tenantCount: tenantCountMap.get(a.id) || 0,
+      lastPaymentAt: paymentMap.get(a.id) || null,
+      lastUsageAt: usageMap.get(a.id) || null,
+      lastLoginAt: null, // not tracked yet
+    }));
+
+    return res.json({ ok: true, accounts: results });
+  } catch (err) {
+    console.error('Admin accounts list error', err);
+    return res.status(500).json({ ok: false, error: 'Could not list accounts' });
+  }
+});
+
+// Admin: create an account (no checkout; for support use)
+app.post('/admin/accounts', requireAdmin, async (req, res) => {
+  try {
+    const { email, password, tenantName } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ ok: false, error: 'email and password are required' });
+    }
+    const { accountId, tenantId, apiKey, normalizedEmail } = await createAccountWithDefaults({
+      email,
+      password,
+      tenantName,
+    });
+    return res.json({ ok: true, accountId, tenantId, apiKey, email: normalizedEmail });
+  } catch (err) {
+    console.error('Admin create account error', err);
+    const status = err.status || 500;
+    return res.status(status).json({ ok: false, error: err.message || 'Could not create account' });
+  }
+});
+
+// Admin: delete an account (dangerous; cascades via FK)
+app.delete('/admin/accounts/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params || {};
+    if (!id) {
+      return res.status(400).json({ ok: false, error: 'id is required' });
+    }
+    await pool.query('DELETE FROM accounts WHERE id = $1', [id]);
+    return res.json({ ok: true });
+  } catch (err) {
+    console.error('Admin delete account error', err);
+    return res.status(500).json({ ok: false, error: 'Could not delete account' });
+  }
+});
+
 // Admin: send a one-off usage report email to a given account
 app.post('/admin/send-report', requireAdmin, async (req, res) => {
   try {
