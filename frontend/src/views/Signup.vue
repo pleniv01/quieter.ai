@@ -20,11 +20,6 @@
       <RouterLink :to="{ name: 'ApiKeyGuide' }">hosted API key guide</RouterLink>.
     </p>
 
-    <p class="preview-note">
-      This is an early-access hosted preview. Billing and long-term availability are not yet
-      finalized.
-    </p>
-
     <form class="card" @submit.prevent="onSubmit">
       <p class="blurb">
         We’ll create a private account, issue your API key, and immediately start the subscription

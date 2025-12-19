@@ -69,8 +69,8 @@
         <h2>Billing & plan</h2>
         <p>
           <strong>Plan:</strong>
-          <span v-if="usage.plan">{{ usage.plan }}</span>
-          <span v-else>dev</span>
+          <span v-if="usage.plan && usage.plan.toLowerCase() !== 'dev'">{{ usage.plan }}</span>
+          <span v-else>Not active yet</span>
           <br />
           <strong>Credits remaining:</strong>
           <span>${{ (usage.creditsRemainingCents / 100).toFixed(2) }}</span>
@@ -92,6 +92,7 @@
         </p>
         <div class="billing-actions">
           <button
+            v-if="!hasSubscription"
             type="button"
             class="secondary"
             @click="startSubscription"
@@ -99,7 +100,7 @@
           >
             {{ startingSubscription ? 'Redirecting…' : `Subscribe ($${(subscriptionPriceCents / 100).toFixed(2)}/mo)` }}
           </button>
-          <button type="button" class="ghost" @click="startTopup" :disabled="startingTopup">
+          <button type="button" class="secondary" @click="startTopup" :disabled="startingTopup">
             {{ startingTopup ? 'Redirecting…' : `Top up ${topupCredits} credits ($${(topupPriceCents / 100).toFixed(2)})` }}
           </button>
         </div>
@@ -170,7 +171,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { RouterLink } from 'vue-router';
 
 const apiBase = import.meta.env.VITE_API_BASE_URL;
@@ -200,6 +201,9 @@ const lastPayment = ref(null);
 const loadingBilling = ref(false);
 
 const billingStatus = ref(new URLSearchParams(window.location.search).get('billing') || '');
+const hasSubscription = computed(
+  () => usage.value && usage.value.plan && usage.value.plan.toLowerCase() !== 'dev'
+);
 
 async function fetchMe() {
   if (!accountId.value) return false;
