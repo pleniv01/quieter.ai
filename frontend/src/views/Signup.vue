@@ -27,8 +27,8 @@
 
     <form class="card" @submit.prevent="onSubmit">
       <p class="blurb">
-        We’ll create a private account for you and issue an API key. You can plug this key into the
-        Quieter browser extension, your own apps, or other clients that speak to Quieter.
+        We’ll create a private account, issue your API key, and immediately start the subscription
+        checkout ($9.95/mo, includes 500 credits). You can then add top-ups (1000 credits) any time.
       </p>
       <label>
         Email
@@ -54,7 +54,7 @@
       </label>
 
       <button type="submit" :disabled="loading">
-        {{ loading ? 'Creating account…' : 'Sign up' }}
+        {{ loading ? 'Redirecting to Stripe…' : 'Sign up and subscribe' }}
       </button>
 
       <p v-if="error" class="error">{{ error }}</p>
@@ -94,7 +94,7 @@ async function onSubmit() {
   loading.value = true;
 
   try {
-    const res = await fetch(`${apiBase}/auth/signup`, {
+    const res = await fetch(`${apiBase}/auth/signup-and-subscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email.value, password: password.value, tenantName: tenantName.value }),
@@ -111,7 +111,10 @@ async function onSubmit() {
       localStorage.setItem('quieterAccountId', data.accountId);
       localStorage.setItem('quieterEmail', email.value);
       window.dispatchEvent(new Event('quieter-auth-changed'));
-      // After successful signup, send the user to the dashboard
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
       router.push({ name: 'Dashboard' });
     }
   } catch (e) {

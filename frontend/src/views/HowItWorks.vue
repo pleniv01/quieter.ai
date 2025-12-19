@@ -22,8 +22,8 @@
         <p class="eyebrow">Step 1</p>
         <h2>Create your account</h2>
         <p class="muted">
-          Sign up on the dashboard (takes about a minute). You’ll get your API key for the extension.
-          You start using Quieter after you add a subscription below.
+          Sign up on the dashboard (takes about a minute). We’ll issue your API key and send you to
+          Stripe to start your subscription ($9.95/mo, 500 credits). You can add top-ups any time.
         </p>
       </div>
       <div class="step">

@@ -63,6 +63,46 @@ function countMatches(str, regex) {
   return count;
 }
 
+// Helper to create an account + tenant + API key.
+async function createAccountWithDefaults({ email, password, tenantName }) {
+  const normalizedEmail = String(email).toLowerCase().trim();
+  const existing = await pool.query('SELECT id FROM accounts WHERE email = $1 LIMIT 1', [
+    normalizedEmail,
+  ]);
+  if (existing.rows.length) {
+    const err = new Error('Account already exists');
+    err.status = 409;
+    throw err;
+  }
+
+  const accountId = crypto.randomUUID();
+  const passwordHash = await bcrypt.hash(password, 12);
+
+  await pool.query('INSERT INTO accounts (id, email, password_hash) VALUES ($1, $2, $3)', [
+    accountId,
+    normalizedEmail,
+    passwordHash,
+  ]);
+
+  const tenantId = crypto.randomUUID();
+  const rawApiKey = 'qtr_' + crypto.randomBytes(24).toString('base64url');
+  const apiKeyHash = hashApiKey(rawApiKey);
+  const name = tenantName || 'Default Tenant';
+
+  await pool.query(
+    'INSERT INTO tenants (id, account_id, name, api_key_hash, plan) VALUES ($1, $2, $3, $4, $5)',
+    [tenantId, accountId, name, apiKeyHash, 'dev']
+  );
+
+  const balanceId = crypto.randomUUID();
+  await pool.query(
+    'INSERT INTO balances (id, tenant_id, credits_remaining, billing_email, plan) VALUES ($1, $2, $3, $4, $5)',
+    [balanceId, tenantId, 0, normalizedEmail, 'dev']
+  );
+
+  return { accountId, tenantId, apiKey: rawApiKey, normalizedEmail };
+}
+
 // Railway Postgres connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -347,47 +387,78 @@ app.post('/auth/signup', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Email and password are required' });
     }
 
-    const normalizedEmail = String(email).toLowerCase().trim();
-    const existing = await pool.query('SELECT id FROM accounts WHERE email = $1 LIMIT 1', [
-      normalizedEmail,
-    ]);
-    if (existing.rows.length) {
-      return res.status(409).json({ ok: false, error: 'Account already exists' });
-    }
-
-    const accountId = crypto.randomUUID();
-    const passwordHash = await bcrypt.hash(password, 12);
-
-    await pool.query(
-      'INSERT INTO accounts (id, email, password_hash) VALUES ($1, $2, $3)',
-      [accountId, normalizedEmail, passwordHash]
-    );
-
-    const tenantId = crypto.randomUUID();
-    const rawApiKey = 'qtr_' + crypto.randomBytes(24).toString('base64url');
-    const apiKeyHash = hashApiKey(rawApiKey);
-    const name = tenantName || 'Default Tenant';
-
-    await pool.query(
-      'INSERT INTO tenants (id, account_id, name, api_key_hash, plan) VALUES ($1, $2, $3, $4, $5)',
-      [tenantId, accountId, name, apiKeyHash, 'dev']
-    );
-
-    const balanceId = crypto.randomUUID();
-    await pool.query(
-      'INSERT INTO balances (id, tenant_id, credits_remaining, billing_email, plan) VALUES ($1, $2, $3, $4, $5)',
-      [balanceId, tenantId, 0, normalizedEmail, 'dev']
-    );
+    const { accountId, tenantId, apiKey, normalizedEmail } = await createAccountWithDefaults({
+      email,
+      password,
+      tenantName,
+    });
 
     return res.status(201).json({
       ok: true,
       accountId,
       tenantId,
-      apiKey: rawApiKey,
+      apiKey,
+      email: normalizedEmail,
     });
   } catch (err) {
     console.error('Signup error', err);
-    return res.status(500).json({ ok: false, error: 'Signup failed' });
+    const status = err.status || 500;
+    return res.status(status).json({ ok: false, error: err.message || 'Signup failed' });
+  }
+});
+
+// Auth + subscribe in one step: create account then start subscription checkout.
+app.post('/auth/signup-and-subscribe', async (req, res) => {
+  try {
+    if (!stripe || !stripeSubPriceId) {
+      return res.status(503).json({ ok: false, error: 'Billing is not configured' });
+    }
+
+    const { email, password, tenantName } = req.body || {};
+    if (!email || !password) {
+      return res.status(400).json({ ok: false, error: 'Email and password are required' });
+    }
+
+    const { accountId, tenantId, apiKey, normalizedEmail } = await createAccountWithDefaults({
+      email,
+      password,
+      tenantName,
+    });
+
+    const customer = await stripe.customers.create({
+      email: normalizedEmail,
+      metadata: { accountId },
+    });
+    const stripeCustomerId = customer.id;
+    await pool.query('UPDATE accounts SET stripe_customer_id = $1 WHERE id = $2', [
+      stripeCustomerId,
+      accountId,
+    ]);
+
+    const credits = subscriptionCredits || 500;
+    const session = await stripe.checkout.sessions.create({
+      mode: 'subscription',
+      line_items: [{ price: stripeSubPriceId, quantity: 1 }],
+      client_reference_id: accountId,
+      metadata: { accountId, kind: 'subscription', credits },
+      customer: stripeCustomerId,
+      subscription_data: { metadata: { accountId, kind: 'subscription', credits } },
+      success_url: billingSuccessUrl,
+      cancel_url: billingCancelUrl,
+    });
+
+    return res.json({
+      ok: true,
+      url: session.url,
+      accountId,
+      tenantId,
+      apiKey,
+      email: normalizedEmail,
+    });
+  } catch (err) {
+    console.error('Signup+subscribe error', err);
+    const status = err.status || 500;
+    return res.status(status).json({ ok: false, error: err.message || 'Signup failed' });
   }
 });
 
