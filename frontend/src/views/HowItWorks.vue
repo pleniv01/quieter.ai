@@ -49,8 +49,8 @@
         <h2>Use and monitor</h2>
         <p class="muted">
           Keep using Claude.ai and other supported sites with the extension enabled. Watch your
-          balance and last payment on the dashboard and top up whenever you’re low. No surprise
-          charges if you’re idle.
+          balance and last payment on the dashboard and top up whenever you’re low. No usage charges
+          if you’re idle (subscription still renews monthly).
         </p>
       </div>
     </div>
