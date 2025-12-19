@@ -20,10 +20,10 @@
     <div class="steps">
       <div class="step">
         <p class="eyebrow">Step 1</p>
-        <h2>Create your account (free)</h2>
+        <h2>Create your account</h2>
         <p class="muted">
-          Sign up on the dashboard. We’ll give you a default tenant and an API key you can use with the
-          browser extension or API. Billing only starts when you add credits.
+          Sign up on the dashboard (takes about a minute). You’ll get your API key for the extension.
+          You start using Quieter after you add a subscription below.
         </p>
       </div>
       <div class="step">
@@ -39,9 +39,9 @@
         <p class="eyebrow">Step 3</p>
         <h2>Add credits</h2>
         <p class="muted">
-          From the dashboard, start your monthly subscription (500 credits included, billed monthly).
-          When you need more, add top-ups (1000 credits each) as often as you like—no extra renewal
-          required. Already subscribed? Just top up when you’re low.
+          From the dashboard, start your monthly subscription (includes 500 credits, bills monthly).
+          Need more? Add top-ups (1000 credits each) whenever you’re low—no extra renewal required.
+          Already subscribed? Just top up when you need more.
         </p>
       </div>
       <div class="step">
