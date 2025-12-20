@@ -22,7 +22,7 @@
     <p v-if="error" class="error">{{ error }}</p>
 
     <div class="create-card">
-      <h2>Create account (support)</h2>
+      <h2>Create account</h2>
       <form class="inline-form" @submit.prevent="createAccount">
         <label>Email <input v-model="createEmail" type="email" required /></label>
         <label>Password <input v-model="createPassword" type="password" required /></label>
