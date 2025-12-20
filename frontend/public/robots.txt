@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /docs/
+Disallow: /*.md$
+Disallow: /*.txt$
+Disallow: /*Stripe*Keys*.md$
+
+Sitemap: https://quieter.ai/sitemap.xml

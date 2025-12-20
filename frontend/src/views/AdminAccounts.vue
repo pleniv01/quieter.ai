@@ -435,14 +435,14 @@ async function exportUsage(accountId) {
       throw new Error(data.error || `Export failed (${res.status})`);
     }
     const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
+    const downloadUrl = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
+    a.href = downloadUrl;
     a.download = `usage-${accountId}.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(downloadUrl);
   } catch (e) {
     console.error(e);
     exportError.value = e.message || 'Export failed.';

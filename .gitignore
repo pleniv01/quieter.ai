@@ -22,6 +22,7 @@ pnpm-debug.log*
 # Local documentation
 /docs/
 *.txt
+!frontend/public/robots.txt
 
 # Never commit credentials / key dumps (even if /docs/ gets tracked later)
 *Stripe*Keys*.md
