@@ -535,6 +535,53 @@ app.get('/me', async (req, res) => {
   }
 });
 
+// Tenants for an account (used for listing API keys)
+app.get('/me/tenants', async (req, res) => {
+  try {
+    const accountId = req.query.accountId;
+    if (!accountId) {
+      return res.status(400).json({ ok: false, error: 'accountId is required' });
+    }
+
+    const tenantsRes = await pool.query(
+      'SELECT id, name, created_at FROM tenants WHERE account_id = $1 ORDER BY created_at ASC',
+      [accountId]
+    );
+
+    return res.json({ ok: true, accountId, tenants: tenantsRes.rows || [] });
+  } catch (err) {
+    console.error('Tenants list error', err);
+    return res.status(500).json({ ok: false, error: 'Could not load tenants' });
+  }
+});
+
+// Rotate API key for a specific tenant (returns the new key once)
+app.post('/me/tenants/:id/api-key', async (req, res) => {
+  try {
+    const { id } = req.params || {};
+    const accountId = req.body?.accountId || req.query?.accountId;
+    if (!id || !accountId) {
+      return res.status(400).json({ ok: false, error: 'accountId and tenant id are required' });
+    }
+
+    const tenantRes = await pool.query(
+      'SELECT id FROM tenants WHERE id = $1 AND account_id = $2 LIMIT 1',
+      [id, accountId]
+    );
+    if (!tenantRes.rows.length) {
+      return res.status(404).json({ ok: false, error: 'Tenant not found for this account' });
+    }
+
+    const rawApiKey = 'qtr_' + crypto.randomBytes(24).toString('base64url');
+    const apiKeyHash = hashApiKey(rawApiKey);
+    await pool.query('UPDATE tenants SET api_key_hash = $1 WHERE id = $2', [apiKeyHash, id]);
+    return res.json({ ok: true, apiKey: rawApiKey, tenantId: id });
+  } catch (err) {
+    console.error('Rotate tenant API key error', err);
+    return res.status(500).json({ ok: false, error: 'Could not rotate API key' });
+  }
+});
+
 // Usage summary for an account (simple aggregation by accountId)
 app.get('/me/usage', async (req, res) => {
   try {

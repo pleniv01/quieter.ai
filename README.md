@@ -90,7 +90,7 @@ not yet supported but can be added later.
 
 The extension supports two modes on Claude.ai:
 
-- **Use Quieter (header button)**: injected into the Claude.ai header when the user is logged into Claude and the extension is enabled. It opens a modal to send a prompt through Quieter and view the response. You can insert the response back into Claude’s input. The modal also lets you choose scrub mode and a model family.
+- **Use Quieter (header button)**: injected into the Claude.ai header when the user is logged into Claude and the extension is enabled. It opens a modal to send a prompt through Quieter and view the response. You can copy the response to clipboard. The modal also lets you choose scrub mode and a model family.
 - **Rewrite mode (optional)**: intercepts Claude’s send events and routes the prompt to Quieter instead of Claude’s backend. This updates your Quieter usage and keeps the request behind the privacy shield.
 
 Rewrite mode is controlled from the extension popup and is off by default.

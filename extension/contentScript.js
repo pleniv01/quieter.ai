@@ -288,7 +288,7 @@ function ensureUseQuieterUi() {
         <textarea placeholder="Write your prompt to send through Quieter..."></textarea>
         <div class="quieter-row">
           <button type="button" class="primary" data-quieter-send>Send via Quieter</button>
-          <button type="button" data-quieter-insert>Insert response into Claude</button>
+          <button type="button" data-quieter-copy>Copy response</button>
         </div>
         <div class="quieter-status" data-quieter-status></div>
         <div class="quieter-status" data-quieter-model-used></div>
@@ -299,7 +299,7 @@ function ensureUseQuieterUi() {
 
     const closeBtn = modal.querySelector('[data-quieter-close]');
     const sendBtn = modal.querySelector('[data-quieter-send]');
-    const insertBtn = modal.querySelector('[data-quieter-insert]');
+    const copyBtn = modal.querySelector('[data-quieter-copy]');
     const statusEl = modal.querySelector('[data-quieter-status]');
     const responseEl = modal.querySelector('[data-quieter-response]');
     const textarea = modal.querySelector('textarea');
@@ -336,19 +336,19 @@ function ensureUseQuieterUi() {
       }
     });
 
-    insertBtn.addEventListener('click', () => {
-      const inputEl = getInputElement();
+    copyBtn.addEventListener('click', async () => {
       const responseText = responseEl.textContent || '';
-      if (!inputEl) {
-        statusEl.textContent = 'Claude input not found.';
-        return;
-      }
       if (!responseText || responseText === '(Response will appear here.)') {
-        statusEl.textContent = 'No response to insert yet.';
+        statusEl.textContent = 'No response to copy yet.';
         return;
       }
-      setInputValue(inputEl, responseText);
-      statusEl.textContent = 'Inserted into Claude input.';
+      try {
+        await navigator.clipboard.writeText(responseText);
+        statusEl.textContent = 'Copied to clipboard.';
+      } catch (e) {
+        console.error('Clipboard copy failed', e);
+        statusEl.textContent = 'Copy failed. Please select and copy manually.';
+      }
     });
 
     scrubSelect?.addEventListener('change', () => {
