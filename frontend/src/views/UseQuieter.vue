@@ -9,6 +9,13 @@
       Logged in as <strong>{{ loggedInEmail }}</strong>. Usage is tracked to the Quieter account
       tied to the API key you use.
     </p>
+    <div class="shield-note">
+      <h2>Quieter Shield</h2>
+      <p>
+        The shield routes your prompts through the Quieter proxy so the model provider sees Quieter,
+        not your device. Use the extension for Claude.ai or this page for direct access.
+      </p>
+    </div>
 
     <div class="card">
       <label>
@@ -174,6 +181,28 @@ async function sendPrompt() {
   color: var(--color-text-muted);
   font-size: 0.9rem;
   margin-bottom: 1.2rem;
+}
+
+.shield-note {
+  margin-bottom: 1.6rem;
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  border: 1px dashed var(--color-border);
+  background: #f9fafb;
+}
+
+.shield-note h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
+}
+
+.shield-note p {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
 }
 
 .card,

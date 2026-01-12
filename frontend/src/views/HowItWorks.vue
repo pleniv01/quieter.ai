@@ -55,6 +55,15 @@
       </div>
     </div>
 
+    <div class="shield-note">
+      <h2>Quieter Shield</h2>
+      <p class="muted">
+        The Quieter Shield is the proxy boundary: your prompts route through Quieter so the model
+        provider sees Quieter, not your device. You can use it via the extension (Claude.ai) or the
+        “Use Quieter” page.
+      </p>
+    </div>
+
     <div class="account-note">
       <p>
         Note: your Quieter usage is tied to the <strong>Quieter account</strong> and its
@@ -197,6 +206,24 @@ h1 {
 
 .account-note code {
   font-size: 0.85rem;
+}
+
+.shield-note {
+  border: 1px dashed var(--color-border);
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  margin: 1.2rem 0;
+}
+
+.shield-note h2 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-muted);
 }
 
 @media (max-width: 640px) {

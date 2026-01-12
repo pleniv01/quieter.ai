@@ -144,6 +144,14 @@ Telemetry can be enabled or disabled at any time by the operator and is fully in
 
 ---
 
+## Quieter Shield
+
+The Quieter Shield is the proxy boundary: your prompts route through Quieter so the model provider
+sees Quieter, not your device. You can use it via the browser extension (Claude.ai) or the
+**Use Quieter** page.
+
+---
+
 ## Accounts, Provider Keys, and Usage
 
 Quieter tracks usage by **Quieter account + API key**:

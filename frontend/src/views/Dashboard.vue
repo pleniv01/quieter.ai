@@ -1,6 +1,6 @@
 <template>
   <section class="dash">
-    <h1>Account usage</h1>
+    <h1>Dashboard</h1>
     <p class="lead">
       This is a simple view of how much you’ve used Quieter.ai with your current account.
     </p>
@@ -63,7 +63,6 @@
         <p>
           <strong>Profile name:</strong> {{ profileName || 'Default tenant' }}<br />
           <strong>Total profiles for this account:</strong> {{ tenantCount }}
-          <span v-if="primaryTenantId"><br /><strong>Primary tenant ID:</strong> <code>{{ primaryTenantId }}</code></span>
         </p>
         <p class="profile-note">
           Quieter.ai currently uses a single profile per account by default. In the future, you’ll be
@@ -248,7 +247,6 @@ const billingStatus = ref(new URLSearchParams(window.location.search).get('billi
 const hasSubscription = computed(
   () => usage.value && usage.value.plan && usage.value.plan.toLowerCase() !== 'dev'
 );
-const primaryTenantId = computed(() => tenants.value[0]?.id || '');
 
 function formatCredits(cents) {
   // Backend stores credits as integer units; in our pricing 1 cent = 1 credit.
