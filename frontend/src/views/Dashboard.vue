@@ -124,6 +124,34 @@
         </p>
       </div>
 
+      <div class="profile-card" v-if="tenants.length">
+        <h2>My API keys</h2>
+        <p class="profile-note">
+          Keys are shown only once when rotated. Store them securely.
+        </p>
+        <div v-for="tenant in tenants" :key="tenant.id" class="key-row">
+          <div class="key-meta">
+            <strong>{{ tenant.name || 'Default tenant' }}</strong><br />
+            <span class="muted">{{ tenant.id }}</span>
+          </div>
+          <div class="key-actions">
+            <button
+              type="button"
+              class="secondary"
+              @click="rotateApiKey(tenant.id)"
+              :disabled="rotatingTenantId === tenant.id"
+            >
+              {{ rotatingTenantId === tenant.id ? 'Rotating…' : 'Rotate key' }}
+            </button>
+          </div>
+          <div v-if="rotatedKeys[tenant.id]" class="key-value">
+            <code>{{ rotatedKeys[tenant.id] }}</code>
+            <button type="button" class="ghost" @click="copyKey(rotatedKeys[tenant.id])">Copy</button>
+          </div>
+        </div>
+        <p v-if="tenantsError" class="error">{{ tenantsError }}</p>
+      </div>
+
       <button type="button" @click="loadUsage" :disabled="loading">
         {{ loading ? 'Loading usage…' : 'Refresh usage' }}
       </button>
@@ -188,6 +216,10 @@ const loading = ref(false);
 const error = ref('');
 const profileName = ref('');
 const tenantCount = ref(0);
+const tenants = ref([]);
+const tenantsError = ref('');
+const rotatingTenantId = ref('');
+const rotatedKeys = ref({});
 
 const report = ref(null);
 const loadingReport = ref(false);
@@ -266,6 +298,56 @@ async function loadUsage() {
     error.value = e.message || 'Failed to load usage.';
   } finally {
     loading.value = false;
+  }
+}
+
+async function loadTenants() {
+  tenantsError.value = '';
+  if (!accountId.value) return;
+  try {
+    const url = new URL(`${apiBase}/me/tenants`);
+    url.searchParams.set('accountId', accountId.value);
+    const res = await fetch(url.toString());
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || `Failed to load tenants (${res.status})`);
+    }
+    tenants.value = data.tenants || [];
+  } catch (e) {
+    console.error(e);
+    tenantsError.value = e.message || 'Failed to load tenants.';
+  }
+}
+
+async function rotateApiKey(tenantId) {
+  if (!tenantId || !accountId.value) return;
+  rotatingTenantId.value = tenantId;
+  tenantsError.value = '';
+  try {
+    const res = await fetch(`${apiBase}/me/tenants/${tenantId}/api-key`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId: accountId.value }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || `Failed to rotate API key (${res.status})`);
+    }
+    rotatedKeys.value = { ...rotatedKeys.value, [tenantId]: data.apiKey };
+    localStorage.setItem('quieterLastApiKey', data.apiKey);
+  } catch (e) {
+    console.error(e);
+    tenantsError.value = e.message || 'Failed to rotate API key.';
+  } finally {
+    rotatingTenantId.value = '';
+  }
+}
+
+async function copyKey(value) {
+  try {
+    await navigator.clipboard.writeText(value);
+  } catch (e) {
+    console.error('Failed to copy API key', e);
   }
 }
 
@@ -374,6 +456,7 @@ onMounted(async () => {
     return;
   }
   await loadUsage();
+  await loadTenants();
   await loadBilling();
 
   // Stripe subscription invoice processing may land slightly after the redirect.
@@ -516,6 +599,38 @@ button:disabled {
   background: transparent;
   border: 1px solid var(--color-border);
   color: var(--color-text);
+}
+
+.key-row {
+  margin-top: 0.85rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--color-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.key-meta {
+  font-size: 0.85rem;
+  color: var(--color-text);
+}
+
+.key-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.key-value {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.muted {
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
 }
 
 .error {
