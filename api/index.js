@@ -906,6 +906,18 @@ app.post('/proxy', async (req, res) => {
 
 // Helper: resolve a model based on requested name or "auto" using model_configs
 async function resolveModelConfig(requestedModel) {
+  const defaultModelId = process.env.QUIETER_DEFAULT_MODEL_ID;
+  if ((!requestedModel || requestedModel === 'auto') && defaultModelId) {
+    const res = await pool.query(
+      'SELECT * FROM model_configs WHERE id = $1 AND enabled = TRUE LIMIT 1',
+      [defaultModelId]
+    );
+    if (res.rows.length) {
+      return res.rows[0];
+    }
+    console.warn('QUIETER_DEFAULT_MODEL_ID not found or disabled:', defaultModelId);
+  }
+
   // Explicit model id: look it up
   if (requestedModel && requestedModel !== 'auto') {
     const res = await pool.query(
@@ -1011,19 +1023,33 @@ app.post('/query', tenantAuth, async (req, res) => {
 
     const modelConfig = await resolveModelConfig(model || 'auto');
     const modelName = modelConfig.api_model_name;
+    const maxTokensRaw = req.body?.max_tokens ?? req.body?.maxTokens;
+    const temperatureRaw = req.body?.temperature;
+    const systemPrompt = req.body?.system ?? req.body?.systemPrompt;
+    const maxTokens = Number.isFinite(Number(maxTokensRaw))
+      ? Math.min(Math.max(Number(maxTokensRaw), 1), 4096)
+      : 512;
+    const temperature = Number.isFinite(Number(temperatureRaw))
+      ? Math.min(Math.max(Number(temperatureRaw), 0), 1)
+      : 0.7;
 
-    const start = Date.now();
-    const message = await anthropic.messages.create({
+    const payload = {
       model: modelName,
-      max_tokens: 256,
-      temperature: 0.3,
+      max_tokens: maxTokens,
+      temperature,
       messages: [
         {
           role: 'user',
-          content: `You are a helpful assistant behind a privacy shield. Respond to the following scrubbed prompt:\n\n${scrubbedPrompt}`,
+          content: scrubbedPrompt,
         },
       ],
-    });
+    };
+    if (systemPrompt && typeof systemPrompt === 'string') {
+      payload.system = systemPrompt;
+    }
+
+    const start = Date.now();
+    const message = await anthropic.messages.create(payload);
     const latencyMs = Date.now() - start;
 
     const textPart = message.content?.find?.(p => p.type === 'text');

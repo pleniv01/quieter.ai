@@ -1,9 +1,11 @@
 const STORAGE_KEY = 'quieterApiKey';
+const REWRITE_MODE_KEY = 'quieterRewriteMode';
 const API_BASE = 'https://quieteraiapp-production.up.railway.app';
 
 const apiKeyInput = document.getElementById('apiKey');
 const saveButton = document.getElementById('save');
 const testButton = document.getElementById('test');
+const rewriteModeToggle = document.getElementById('rewriteMode');
 const statusEl = document.getElementById('status');
 const promptInput = document.getElementById('prompt');
 const sendButton = document.getElementById('send');
@@ -23,6 +25,10 @@ chrome.storage.sync.get([STORAGE_KEY], (result) => {
   }
 });
 
+chrome.storage.sync.get([REWRITE_MODE_KEY], (result) => {
+  rewriteModeToggle.checked = Boolean(result[REWRITE_MODE_KEY]);
+});
+
 saveButton.addEventListener('click', () => {
   const key = apiKeyInput.value.trim();
   if (!key) {
@@ -31,6 +37,17 @@ saveButton.addEventListener('click', () => {
   }
   chrome.storage.sync.set({ [STORAGE_KEY]: key }, () => {
     setStatus('API key saved.', 'ok');
+  });
+});
+
+rewriteModeToggle.addEventListener('change', () => {
+  chrome.storage.sync.set({ [REWRITE_MODE_KEY]: rewriteModeToggle.checked }, () => {
+    setStatus(
+      rewriteModeToggle.checked
+        ? 'Rewrite mode enabled. Claude sends will use Quieter.'
+        : 'Rewrite mode disabled.',
+      'ok'
+    );
   });
 });
 

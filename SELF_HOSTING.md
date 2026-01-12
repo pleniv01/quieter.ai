@@ -56,10 +56,12 @@ Typical required variables include:
 ANTHROPIC_API_KEY=your_key_here
 DATABASE_URL=postgresql://user:pass@host:5432/quieter
 QUIETER_TELEMETRY_ENABLED=false
+QUIETER_DEFAULT_MODEL_ID=anthropic:claude-3-5-sonnet-latest
 ```
 
 - `QUIETER_TELEMETRY_ENABLED` controls optional, anonymized, instance-level telemetry.
 - When absent or set to anything other than `true`, **no telemetry code runs**.
+- `QUIETER_DEFAULT_MODEL_ID` forces `/query` to use a specific model when `model=auto`.
 
 ## Quickstart: Reference Self-Hosted Deployment
 
@@ -137,4 +139,3 @@ Operators can always:
 - Inspect the implementation in `api/telemetry.js`
 - Disable telemetry entirely by omitting `QUIETER_TELEMETRY_ENABLED` or setting it to `false`
 - Fork or modify the telemetry endpoint if desired
-

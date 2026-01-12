@@ -83,6 +83,17 @@ Quieter.ai is a **privacy-enhancing measure**, not a silver bullet.
 
 ---
 
+## Browser Extension (Claude.ai)
+
+The extension supports two modes on Claude.ai:
+
+- **Use Quieter (header button)**: opens a modal to send a prompt through Quieter and view the response. You can insert the response back into Claude’s input.
+- **Rewrite mode (optional)**: intercepts Claude’s send events and routes the prompt to Quieter instead of Claude’s backend. This updates your Quieter usage and keeps the request behind the privacy shield.
+
+Rewrite mode is controlled from the extension popup and is off by default.
+
+---
+
 ## Telemetry
 
 Quieter.ai does **not** collect centralized usage data by default.
@@ -117,6 +128,27 @@ Typical telemetry data may include:
 - Whether optional privacy features are enabled
 
 Telemetry can be enabled or disabled at any time by the operator and is fully inspectable in the source code.
+
+---
+
+## Default Model Selection
+
+`/query` uses a simple model router. You can force a default model for `model=auto` by setting:
+
+```env
+QUIETER_DEFAULT_MODEL_ID=anthropic:claude-3-5-sonnet-latest
+```
+
+If unset, Quieter selects the cheapest enabled model in `model_configs`.
+
+---
+
+## Deploy Checklist (Railway + Chrome Extension)
+
+- API: push to the tracked branch; Railway will redeploy.
+- Railway env vars: ensure `DATABASE_URL`, `ANTHROPIC_API_KEY`, `CORS_ORIGIN`, and `QUIETER_DEFAULT_MODEL_ID` are set.
+- Migrations: run `cd api && npm run migrate` whenever new migrations are added.
+- Extension: reload the unpacked extension in `chrome://extensions`, or re-pack and publish if distributing.
 
 ---
 
