@@ -62,6 +62,10 @@
         provider sees Quieter, not your device. You can use it via the extension (Claude.ai) or the
         “Use Quieter” page.
       </p>
+      <p class="muted">
+        Scrub mode is optional and controls how much obvious identifier removal happens before the
+        request leaves Quieter (off, light, or strict).
+      </p>
     </div>
 
     <div class="account-note">

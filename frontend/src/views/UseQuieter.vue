@@ -28,7 +28,7 @@
       </label>
 
       <div class="row">
-        <label>
+        <label title="Scrub mode removes obvious identifiers before the request leaves Quieter.">
           Scrub mode
           <select v-model="scrubMode">
             <option value="strict">Strict</option>
@@ -47,6 +47,10 @@
           </select>
         </label>
       </div>
+      <p class="field-hint">
+        Scrub mode removes obvious identifiers before the request leaves Quieter. Off keeps your
+        prompt unchanged.
+      </p>
 
       <label class="inline">
         <input v-model="modelFallback" type="checkbox" />
@@ -274,6 +278,12 @@ button:disabled {
 }
 
 .meta {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.field-hint {
+  margin: 0;
   font-size: 0.85rem;
   color: var(--color-text-muted);
 }
