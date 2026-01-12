@@ -55,6 +55,14 @@
       </div>
     </div>
 
+    <div class="account-note">
+      <p>
+        Note: your Quieter usage is tied to the <strong>Quieter account</strong> and its
+        <code>qtr_...</code> API key. Your Claude login and your Anthropic API key are separate.
+        Make sure you’re signed in to the Quieter account whose usage you want to track.
+      </p>
+    </div>
+
     <div class="note">
       <p>
         Need a different credit split or have integration questions? Reach out—we can adjust the
@@ -175,6 +183,20 @@ h1 {
   padding: 1rem 1rem;
   color: var(--color-text-muted);
   font-size: 0.95rem;
+}
+
+.account-note {
+  border: 1px dashed var(--color-border);
+  background: #f9fafb;
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  margin: 1.2rem 0;
+}
+
+.account-note code {
+  font-size: 0.85rem;
 }
 
 @media (max-width: 640px) {

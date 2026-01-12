@@ -20,7 +20,9 @@
         <RouterLink to="/login" class="nav-link">Log in</RouterLink>
       </template>
       <template v-else>
-        <span class="nav-user">{{ email || 'Account' }}</span>
+        <span class="nav-user">
+          Logged in as <strong>{{ email || 'Account' }}</strong>
+        </span>
         <button class="nav-link nav-logout" type="button" @click="logout">Log out</button>
       </template>
     </nav>
@@ -136,6 +138,11 @@ onBeforeUnmount(() => {
 .nav-user {
   font-size: 0.85rem;
   color: var(--color-text-muted);
+}
+
+.nav-user strong {
+  color: var(--color-text);
+  font-weight: 600;
 }
 
 .nav-logout {

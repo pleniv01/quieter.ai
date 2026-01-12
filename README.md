@@ -144,6 +144,19 @@ Telemetry can be enabled or disabled at any time by the operator and is fully in
 
 ---
 
+## Accounts, Provider Keys, and Usage
+
+Quieter tracks usage by **Quieter account + API key**:
+
+- **Anthropic API key** powers the Quieter server and is not tied to a user.
+- **Quieter API key (`qtr_...`)** maps usage to a specific Quieter account/tenant.
+- **Claude login** is separate and does not affect Quieter usage tracking.
+
+If usage doesn’t appear in the dashboard, make sure you’re logged into the Quieter account that
+owns the `qtr_...` key you used.
+
+---
+
 ## Default Model Selection
 
 `/query` uses a simple model router. You can force a default model for `model=auto` by setting:

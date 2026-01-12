@@ -5,6 +5,10 @@
       Send a prompt through your Quieter API key. This runs directly through the Quieter proxy
       without requiring Claude.
     </p>
+    <p v-if="loggedInEmail" class="account-note">
+      Logged in as <strong>{{ loggedInEmail }}</strong>. Usage is tracked to the Quieter account
+      tied to the API key you use.
+    </p>
 
     <div class="card">
       <label>
@@ -78,6 +82,7 @@ const response = ref('');
 const modelUsed = ref('');
 const error = ref('');
 const loading = ref(false);
+const loggedInEmail = ref(localStorage.getItem('quieterEmail') || '');
 
 onMounted(() => {
   const savedKey = localStorage.getItem(STORAGE_KEY);
@@ -162,6 +167,12 @@ async function sendPrompt() {
 
 .lead {
   color: var(--color-text-muted);
+  margin-bottom: 1.2rem;
+}
+
+.account-note {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
   margin-bottom: 1.2rem;
 }
 

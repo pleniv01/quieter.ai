@@ -25,6 +25,10 @@
         <span v-else>Profile: <strong>Default tenant</strong></span><br />
         Account ID: <code>{{ accountId }}</code>
       </p>
+      <p class="account-note">
+        Usage stats and API keys shown here belong only to this Quieter account. Keys from other
+        accounts will not affect this dashboard.
+      </p>
 
       <div class="profile-card" v-if="usage">
         <h2>Profile settings (read-only for now)</h2>
@@ -127,7 +131,7 @@
       <div class="profile-card" v-if="tenants.length">
         <h2>My API keys</h2>
         <p class="profile-note">
-          Keys are shown only once when rotated. Store them securely.
+          For security, existing keys are never shown. Generate a new key to view and copy it once.
         </p>
         <div v-for="tenant in tenants" :key="tenant.id" class="key-row">
           <div class="key-meta">
@@ -141,7 +145,7 @@
               @click="rotateApiKey(tenant.id)"
               :disabled="rotatingTenantId === tenant.id"
             >
-              {{ rotatingTenantId === tenant.id ? 'Rotating…' : 'Rotate key' }}
+              {{ rotatingTenantId === tenant.id ? 'Generating…' : 'Generate new key' }}
             </button>
           </div>
           <div v-if="rotatedKeys[tenant.id]" class="key-value">
@@ -500,6 +504,12 @@ onMounted(async () => {
   font-size: 0.9rem;
   color: var(--color-text-muted);
   margin-bottom: 1rem;
+}
+
+.account-note {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  margin: -0.4rem 0 1rem;
 }
 
 .profile-card {
