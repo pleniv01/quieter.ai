@@ -6,6 +6,9 @@ console.log('[Quieter] Claude content script loaded');
 
 const STORAGE_KEY = 'quieterApiKey';
 const REWRITE_MODE_KEY = 'quieterRewriteMode';
+const SCRUB_MODE_KEY = 'quieterScrubMode';
+const MODEL_FAMILY_KEY = 'quieterModelFamily';
+const MODEL_FALLBACK_KEY = 'quieterModelFallback';
 const API_BASE = 'https://quieteraiapp-production.up.railway.app';
 const UI_STYLE_ID = 'quieter-ui-style';
 const UI_BUTTON_ID = 'quieter-use-button';
@@ -21,6 +24,9 @@ async function getApiKey() {
 
 let lastSentText = '';
 let rewriteModeEnabled = false;
+let defaultScrubMode = 'strict';
+let defaultModelFamily = 'auto';
+let defaultModelFallback = false;
 
 function loadRewriteMode() {
   chrome.storage.sync.get([REWRITE_MODE_KEY], (result) => {
@@ -28,10 +34,27 @@ function loadRewriteMode() {
   });
 }
 
+function loadDefaults() {
+  chrome.storage.sync.get([SCRUB_MODE_KEY, MODEL_FAMILY_KEY, MODEL_FALLBACK_KEY], (result) => {
+    defaultScrubMode = result[SCRUB_MODE_KEY] || 'strict';
+    defaultModelFamily = result[MODEL_FAMILY_KEY] || 'auto';
+    defaultModelFallback = Boolean(result[MODEL_FALLBACK_KEY]);
+  });
+}
+
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== 'sync') return;
   if (changes[REWRITE_MODE_KEY]) {
     rewriteModeEnabled = Boolean(changes[REWRITE_MODE_KEY].newValue);
+  }
+  if (changes[SCRUB_MODE_KEY]) {
+    defaultScrubMode = changes[SCRUB_MODE_KEY].newValue || 'strict';
+  }
+  if (changes[MODEL_FAMILY_KEY]) {
+    defaultModelFamily = changes[MODEL_FAMILY_KEY].newValue || 'auto';
+  }
+  if (changes[MODEL_FALLBACK_KEY]) {
+    defaultModelFallback = Boolean(changes[MODEL_FALLBACK_KEY].newValue);
   }
 });
 
@@ -63,16 +86,28 @@ async function sendToQuieter(promptText) {
   }
 }
 
-async function queryQuieter(promptText) {
+async function queryQuieter(promptText, options = {}) {
   const text = (promptText || '').trim();
   if (!text) {
     return { ok: false, error: 'Enter a prompt first.' };
   }
 
+  const scrubMode = options.scrubMode || defaultScrubMode;
+  const modelFamily = options.modelFamily || defaultModelFamily;
+  const modelFallback = options.modelFallback ?? defaultModelFallback;
+
   const key = await getApiKey();
   if (!key) {
     return { ok: false, error: 'No API key saved. Open the extension popup to add it.' };
   }
+
+  const body = {
+    prompt: text,
+    metadata: { source: options.source || 'claude-navbar' },
+  };
+  if (scrubMode) body.scrub_mode = scrubMode;
+  if (modelFamily && modelFamily !== 'auto') body.model_family = modelFamily;
+  if (modelFallback) body.model_fallback = true;
 
   try {
     const res = await fetch(`${API_BASE}/query`, {
@@ -81,16 +116,13 @@ async function queryQuieter(promptText) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${key}`,
       },
-      body: JSON.stringify({
-        prompt: text,
-        metadata: { source: 'claude-navbar' },
-      }),
+      body: JSON.stringify(body),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
       return { ok: false, error: data.error || `Request failed (${res.status})` };
     }
-    return { ok: true, response: data.modelResponse || '' };
+    return { ok: true, response: data.modelResponse || '', modelInfo: data.modelInfo || null };
   } catch (e) {
     console.error('Quieter request failed', e);
     return { ok: false, error: 'Network error while calling Quieter.' };
@@ -187,6 +219,7 @@ function ensureUiStyles() {
       max-height: 260px;
       overflow: auto;
       font-size: 13px;
+      color: #111;
     }
     #${UI_MODAL_ID} .quieter-status {
       font-size: 12px;
@@ -199,6 +232,7 @@ function ensureUiStyles() {
       background: #f7f7f7;
       cursor: pointer;
       font-size: 12px;
+      color: #111;
     }
     #${UI_MODAL_ID} button.primary {
       background: #111;
@@ -228,12 +262,36 @@ function ensureUseQuieterUi() {
           <strong>Use Quieter</strong>
           <button type="button" data-quieter-close>Close</button>
         </div>
+        <div class="quieter-row">
+          <label style="font-size: 12px;">
+            Scrub mode
+            <select data-quieter-scrub style="margin-left: 6px;">
+              <option value="strict">Strict</option>
+              <option value="light">Light</option>
+              <option value="off">Off</option>
+            </select>
+          </label>
+          <label style="font-size: 12px;">
+            Model family
+            <select data-quieter-family style="margin-left: 6px;">
+              <option value="auto">Auto</option>
+              <option value="haiku">Haiku</option>
+              <option value="sonnet">Sonnet</option>
+              <option value="opus">Opus</option>
+            </select>
+          </label>
+          <label style="font-size: 12px;">
+            <input type="checkbox" data-quieter-fallback />
+            Try next model if unavailable
+          </label>
+        </div>
         <textarea placeholder="Write your prompt to send through Quieter..."></textarea>
         <div class="quieter-row">
           <button type="button" class="primary" data-quieter-send>Send via Quieter</button>
           <button type="button" data-quieter-insert>Insert response into Claude</button>
         </div>
         <div class="quieter-status" data-quieter-status></div>
+        <div class="quieter-status" data-quieter-model-used></div>
         <div class="quieter-response" data-quieter-response>(Response will appear here.)</div>
       </div>
     `;
@@ -245,6 +303,10 @@ function ensureUseQuieterUi() {
     const statusEl = modal.querySelector('[data-quieter-status]');
     const responseEl = modal.querySelector('[data-quieter-response]');
     const textarea = modal.querySelector('textarea');
+    const scrubSelect = modal.querySelector('[data-quieter-scrub]');
+    const familySelect = modal.querySelector('[data-quieter-family]');
+    const fallbackToggle = modal.querySelector('[data-quieter-fallback]');
+    const modelUsedEl = modal.querySelector('[data-quieter-model-used]');
 
     closeBtn.addEventListener('click', () => {
       modal.style.display = 'none';
@@ -256,13 +318,22 @@ function ensureUseQuieterUi() {
     sendBtn.addEventListener('click', async () => {
       statusEl.textContent = 'Sending...';
       responseEl.textContent = '';
-      const result = await queryQuieter(textarea.value);
+      if (modelUsedEl) modelUsedEl.textContent = '';
+      const result = await queryQuieter(textarea.value, {
+        source: 'claude-navbar',
+        scrubMode: scrubSelect?.value || defaultScrubMode,
+        modelFamily: familySelect?.value || defaultModelFamily,
+        modelFallback: fallbackToggle?.checked ?? defaultModelFallback,
+      });
       if (!result.ok) {
         statusEl.textContent = result.error;
         return;
       }
       statusEl.textContent = 'Response received.';
       responseEl.textContent = result.response || '(no response text)';
+      if (modelUsedEl && result.modelInfo?.displayName) {
+        modelUsedEl.textContent = `Model used: ${result.modelInfo.displayName}`;
+      }
     });
 
     insertBtn.addEventListener('click', () => {
@@ -278,6 +349,22 @@ function ensureUseQuieterUi() {
       }
       setInputValue(inputEl, responseText);
       statusEl.textContent = 'Inserted into Claude input.';
+    });
+
+    scrubSelect?.addEventListener('change', () => {
+      const value = scrubSelect.value || 'strict';
+      chrome.storage.sync.set({ [SCRUB_MODE_KEY]: value });
+      defaultScrubMode = value;
+    });
+    familySelect?.addEventListener('change', () => {
+      const value = familySelect.value || 'auto';
+      chrome.storage.sync.set({ [MODEL_FAMILY_KEY]: value });
+      defaultModelFamily = value;
+    });
+    fallbackToggle?.addEventListener('change', () => {
+      const value = Boolean(fallbackToggle.checked);
+      chrome.storage.sync.set({ [MODEL_FALLBACK_KEY]: value });
+      defaultModelFallback = value;
     });
   }
 
@@ -314,6 +401,14 @@ function openQuieterModal(promptText) {
   if (promptText && elements.textarea) {
     elements.textarea.value = promptText;
   }
+  const scrubSelect = elements.modal.querySelector('[data-quieter-scrub]');
+  const familySelect = elements.modal.querySelector('[data-quieter-family]');
+  const fallbackToggle = elements.modal.querySelector('[data-quieter-fallback]');
+  const modelUsedEl = elements.modal.querySelector('[data-quieter-model-used]');
+  if (scrubSelect) scrubSelect.value = defaultScrubMode;
+  if (familySelect) familySelect.value = defaultModelFamily;
+  if (fallbackToggle) fallbackToggle.checked = defaultModelFallback;
+  if (modelUsedEl) modelUsedEl.textContent = '';
   return elements;
 }
 
@@ -323,7 +418,16 @@ async function handleRewrite(promptText) {
   if (elements.statusEl) elements.statusEl.textContent = 'Sending via Quieter...';
   if (elements.responseEl) elements.responseEl.textContent = '';
 
-  const result = await queryQuieter(promptText);
+  const scrubSelect = elements.modal.querySelector('[data-quieter-scrub]');
+  const familySelect = elements.modal.querySelector('[data-quieter-family]');
+  const fallbackToggle = elements.modal.querySelector('[data-quieter-fallback]');
+  const modelUsedEl = elements.modal.querySelector('[data-quieter-model-used]');
+  const result = await queryQuieter(promptText, {
+    source: 'claude-rewrite',
+    scrubMode: scrubSelect?.value || defaultScrubMode,
+    modelFamily: familySelect?.value || defaultModelFamily,
+    modelFallback: fallbackToggle?.checked ?? defaultModelFallback,
+  });
   if (!result.ok) {
     if (elements.statusEl) elements.statusEl.textContent = result.error || 'Request failed.';
     return;
@@ -332,6 +436,9 @@ async function handleRewrite(promptText) {
   if (elements.statusEl) elements.statusEl.textContent = 'Response received.';
   if (elements.responseEl) {
     elements.responseEl.textContent = result.response || '(no response text)';
+  }
+  if (modelUsedEl && result.modelInfo?.displayName) {
+    modelUsedEl.textContent = `Model used: ${result.modelInfo.displayName}`;
   }
 }
 
@@ -378,6 +485,7 @@ function attachListeners() {
 attachListeners();
 ensureUseQuieterUi();
 loadRewriteMode();
+loadDefaults();
 const observer = new MutationObserver(() => {
   attachListeners();
   ensureUseQuieterUi();

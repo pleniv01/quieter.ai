@@ -1,11 +1,17 @@
 const STORAGE_KEY = 'quieterApiKey';
 const REWRITE_MODE_KEY = 'quieterRewriteMode';
+const SCRUB_MODE_KEY = 'quieterScrubMode';
+const MODEL_FAMILY_KEY = 'quieterModelFamily';
+const MODEL_FALLBACK_KEY = 'quieterModelFallback';
 const API_BASE = 'https://quieteraiapp-production.up.railway.app';
 
 const apiKeyInput = document.getElementById('apiKey');
 const saveButton = document.getElementById('save');
 const testButton = document.getElementById('test');
 const rewriteModeToggle = document.getElementById('rewriteMode');
+const scrubModeSelect = document.getElementById('scrubMode');
+const modelFamilySelect = document.getElementById('modelFamily');
+const modelFallbackToggle = document.getElementById('modelFallback');
 const statusEl = document.getElementById('status');
 const promptInput = document.getElementById('prompt');
 const sendButton = document.getElementById('send');
@@ -29,6 +35,12 @@ chrome.storage.sync.get([REWRITE_MODE_KEY], (result) => {
   rewriteModeToggle.checked = Boolean(result[REWRITE_MODE_KEY]);
 });
 
+chrome.storage.sync.get([SCRUB_MODE_KEY, MODEL_FAMILY_KEY, MODEL_FALLBACK_KEY], (result) => {
+  scrubModeSelect.value = result[SCRUB_MODE_KEY] || 'strict';
+  modelFamilySelect.value = result[MODEL_FAMILY_KEY] || 'auto';
+  modelFallbackToggle.checked = Boolean(result[MODEL_FALLBACK_KEY]);
+});
+
 saveButton.addEventListener('click', () => {
   const key = apiKeyInput.value.trim();
   if (!key) {
@@ -48,6 +60,26 @@ rewriteModeToggle.addEventListener('change', () => {
         : 'Rewrite mode disabled.',
       'ok'
     );
+  });
+});
+
+scrubModeSelect.addEventListener('change', () => {
+  chrome.storage.sync.set({ [SCRUB_MODE_KEY]: scrubModeSelect.value }, () => {
+    setStatus(`Default scrub mode set to "${scrubModeSelect.value}".`, 'ok');
+  });
+});
+
+modelFamilySelect.addEventListener('change', () => {
+  const value = modelFamilySelect.value || 'auto';
+  chrome.storage.sync.set({ [MODEL_FAMILY_KEY]: value }, () => {
+    setStatus(`Default model family set to "${value}".`, 'ok');
+  });
+});
+
+modelFallbackToggle.addEventListener('change', () => {
+  const value = Boolean(modelFallbackToggle.checked);
+  chrome.storage.sync.set({ [MODEL_FALLBACK_KEY]: value }, () => {
+    setStatus(value ? 'Model fallback enabled.' : 'Model fallback disabled.', 'ok');
   });
 });
 

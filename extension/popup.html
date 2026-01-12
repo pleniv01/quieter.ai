@@ -69,6 +69,30 @@
       Route Claude sends through Quieter (rewrite mode)
     </label>
 
+    <label style="margin-top: 8px;">
+      Default scrub mode
+      <select id="scrubMode" style="width: 100%; box-sizing: border-box; font-size: 12px;">
+        <option value="strict">Strict (redact names, emails, etc.)</option>
+        <option value="light">Light (redact emails/IDs only)</option>
+        <option value="off">Off</option>
+      </select>
+    </label>
+
+    <label style="margin-top: 8px;">
+      Default model family
+      <select id="modelFamily" style="width: 100%; box-sizing: border-box; font-size: 12px;">
+        <option value="auto">Auto</option>
+        <option value="haiku">Haiku</option>
+        <option value="sonnet">Sonnet</option>
+        <option value="opus">Opus</option>
+      </select>
+    </label>
+
+    <label style="margin-top: 8px; display: flex; gap: 6px; align-items: center;">
+      <input id="modelFallback" type="checkbox" />
+      Try next model if the first choice is unavailable
+    </label>
+
     <hr />
 
     <p><strong>Try a test prompt via Quieter</strong></p>

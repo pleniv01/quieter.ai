@@ -753,6 +753,9 @@ async function tenantAuth(req, res, next) {
 app.post('/proxy', async (req, res) => {
   try {
     const { prompt, metadata, model } = req.body || {};
+    const scrubMode = req.body?.scrub_mode || req.body?.scrubMode || 'strict';
+    const modelFamily = req.body?.model_family || req.body?.modelFamily;
+    const allowFallback = Boolean(req.body?.model_fallback || req.body?.modelFallback);
 
     // Instance-level, anonymous telemetry: count requests only when
     // QUIETER_TELEMETRY_ENABLED=true. This never inspects prompt content
@@ -763,65 +766,7 @@ app.post('/proxy', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Missing or invalid "prompt"' });
     }
 
-    // Basic redaction example (can be replaced with more robust scrubber):
-    // Phase 1: names, SSN-style IDs, and emails
-    let redactions = 0;
-    redactions += countMatches(prompt, /\b[A-Z][a-z]+ [A-Z][a-z]+\b/);
-    redactions += countMatches(prompt, /\b\d{3}-\d{2}-\d{4}\b/);
-    redactions += countMatches(prompt, /[\w.-]+@[\w.-]+\.[A-Za-z]{2,}/);
-
-    let scrubbedPrompt = prompt
-      .replace(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g, '[redacted-name]')
-      .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[redacted-ssn]')
-      .replace(/[\w.-]+@[\w.-]+\.[A-Za-z]{2,}/g, '[redacted-email]');
-
-    // Phase 2: crypto-related secrets and wallet addresses
-    // Seed phrases / private keys / recovery phrases (very rough heuristic)
-    redactions += countMatches(scrubbedPrompt, /(seed phrase|recovery phrase|mnemonic phrase|private key|wallet seed)/i);
-    scrubbedPrompt = scrubbedPrompt.replace(
-      /(seed phrase|recovery phrase|mnemonic phrase|private key|wallet seed)/gi,
-      '[redacted-crypto-secret]'
-    );
-    // Ethereum-style addresses
-    redactions += countMatches(scrubbedPrompt, /\b0x[a-fA-F0-9]{40}\b/);
-    scrubbedPrompt = scrubbedPrompt.replace(
-      /\b0x[a-fA-F0-9]{40}\b/g,
-      '[redacted-eth-address]'
-    );
-    // Bitcoin-style base58 addresses (simple length-based heuristic)
-    redactions += countMatches(scrubbedPrompt, /\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b/);
-    scrubbedPrompt = scrubbedPrompt.replace(
-      /\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b/g,
-      '[redacted-btc-address]'
-    );
-
-    // Phase 3: financial account / card-like patterns
-    // Common credit card-like sequences (very approximate)
-    redactions += countMatches(scrubbedPrompt, /\b(?:\d[ -]*?){13,16}\b/);
-    scrubbedPrompt = scrubbedPrompt.replace(
-      /\b(?:\d[ -]*?){13,16}\b/g,
-      '[redacted-card-or-account]'
-    );
-    // Long digit runs that look like account or investment IDs
-    redactions += countMatches(scrubbedPrompt, /\b\d{10,20}\b/);
-    scrubbedPrompt = scrubbedPrompt.replace(
-      /\b\d{10,20}\b/g,
-      '[redacted-account-number]'
-    );
-
-    // Phase 4: medical diagnostic hints (very coarse for now)
-    // ICD-10 style codes (e.g. F32.1, E11.9)
-    redactions += countMatches(scrubbedPrompt, /\b[ABDEGHJKLMNPRSTVWXYZ]\d{2}(?:\.\d{1,4})?\b/);
-    scrubbedPrompt = scrubbedPrompt.replace(
-      /\b[ABDEGHJKLMNPRSTVWXYZ]\d{2}(?:\.\d{1,4})?\b/g,
-      '[redacted-medical-code]'
-    );
-    // Lines starting with Diagnosis:
-    redactions += countMatches(scrubbedPrompt, /(Diagnosis\s*:\s*)(.+)/i);
-    scrubbedPrompt = scrubbedPrompt.replace(
-      /(Diagnosis\s*:\s*)(.+)/gi,
-      '$1[redacted-medical-diagnosis]'
-    );
+    const { scrubbedPrompt, redactions } = scrubPromptWithMode(prompt, scrubMode);
 
     const scrubbedMetadata = metadata
       ? { ...metadata, user: undefined, email: undefined, session_id: undefined }
@@ -836,11 +781,8 @@ app.post('/proxy', async (req, res) => {
       });
     }
 
-    const modelName = model || 'claude-3-5-haiku-latest';
-
-    const start = Date.now();
-    const message = await anthropic.messages.create({
-      model: modelName,
+    const candidates = await resolveModelCandidates(model || 'auto', modelFamily);
+    const payload = {
       max_tokens: 256,
       temperature: 0.3,
       messages: [
@@ -849,7 +791,14 @@ app.post('/proxy', async (req, res) => {
           content: `You are a helpful assistant behind a privacy shield. Respond to the following scrubbed prompt:\n\n${scrubbedPrompt}`,
         },
       ],
-    });
+    };
+
+    const start = Date.now();
+    const { message, modelConfig, fallbackUsed } = await callAnthropicWithFallback(
+      candidates,
+      payload,
+      allowFallback
+    );
     const latencyMs = Date.now() - start;
 
     const textPart = message.content?.find?.(p => p.type === 'text');
@@ -892,7 +841,15 @@ app.post('/proxy', async (req, res) => {
       ok: true,
       prompt: scrubbedPrompt,
       metadata: scrubbedMetadata,
-      model: modelName,
+      model: modelConfig.id,
+      modelInfo: {
+        id: modelConfig.id,
+        displayName: modelConfig.display_name,
+        provider: modelConfig.provider,
+        apiModelName: modelConfig.api_model_name,
+      },
+      modelFamily: normalizeModelFamily(modelFamily),
+      modelFallbackUsed: fallbackUsed,
       latencyMs,
       modelResponse: modelText,
       demoDirectView,
@@ -904,16 +861,28 @@ app.post('/proxy', async (req, res) => {
   }
 });
 
-// Helper: resolve a model based on requested name or "auto" using model_configs
-async function resolveModelConfig(requestedModel) {
+function normalizeModelFamily(value) {
+  if (!value) return null;
+  const family = String(value).toLowerCase().trim();
+  if (['haiku', 'sonnet', 'opus'].includes(family)) return family;
+  return null;
+}
+
+function isModelNotFoundError(err) {
+  return err?.status === 404 || err?.error?.error?.type === 'not_found_error';
+}
+
+// Helper: resolve model candidates based on explicit model id, family, or auto selection.
+async function resolveModelCandidates(requestedModel, modelFamily) {
+  const family = normalizeModelFamily(modelFamily);
   const defaultModelId = process.env.QUIETER_DEFAULT_MODEL_ID;
-  if ((!requestedModel || requestedModel === 'auto') && defaultModelId) {
+  if ((!requestedModel || requestedModel === 'auto') && !family && defaultModelId) {
     const res = await pool.query(
       'SELECT * FROM model_configs WHERE id = $1 AND enabled = TRUE LIMIT 1',
       [defaultModelId]
     );
     if (res.rows.length) {
-      return res.rows[0];
+      return [res.rows[0]];
     }
     console.warn('QUIETER_DEFAULT_MODEL_ID not found or disabled:', defaultModelId);
   }
@@ -927,7 +896,25 @@ async function resolveModelConfig(requestedModel) {
     if (!res.rows.length) {
       throw new Error('Requested model is not available');
     }
-    return res.rows[0];
+    return [res.rows[0]];
+  }
+
+  if (family) {
+    const res = await pool.query(
+      `SELECT * FROM model_configs
+       WHERE enabled = TRUE
+         AND (
+           id ILIKE $1 OR
+           api_model_name ILIKE $1 OR
+           display_name ILIKE $1
+         )
+       ORDER BY quality_score DESC NULLS LAST, price_input_per_1k_cs ASC
+       LIMIT 5`,
+      [`%${family}%`]
+    );
+    if (res.rows.length) {
+      return res.rows;
+    }
   }
 
   // Auto: choose cheapest enabled model, favoring higher quality if prices tie
@@ -940,7 +927,7 @@ async function resolveModelConfig(requestedModel) {
   if (!res.rows.length) {
     throw new Error('No models are configured');
   }
-  return res.rows[0];
+  return [res.rows[0]];
 }
 
 function computeCostsFromUsage(modelConfig, inputTokens, outputTokens) {
@@ -954,10 +941,68 @@ function computeCostsFromUsage(modelConfig, inputTokens, outputTokens) {
   return { providerCostCents: providerCost, billedCents: billed };
 }
 
+async function callAnthropicWithFallback(candidates, payload, allowFallback) {
+  let lastErr = null;
+  for (let i = 0; i < candidates.length; i += 1) {
+    const modelConfig = candidates[i];
+    try {
+      const message = await anthropic.messages.create({
+        ...payload,
+        model: modelConfig.api_model_name,
+      });
+      return { message, modelConfig, fallbackUsed: i > 0 };
+    } catch (err) {
+      lastErr = err;
+      if (!allowFallback || !isModelNotFoundError(err)) {
+        break;
+      }
+    }
+  }
+  throw lastErr;
+}
+function scrubPromptWithMode(prompt, mode) {
+  const scrubMode = ['off', 'light', 'strict'].includes(mode) ? mode : 'strict';
+  if (scrubMode === 'off') {
+    return { scrubbedPrompt: prompt, redactions: 0 };
+  }
+
+  let redactions = 0;
+  let scrubbedPrompt = prompt;
+
+  const apply = (regex, replacement) => {
+    redactions += countMatches(scrubbedPrompt, regex);
+    scrubbedPrompt = scrubbedPrompt.replace(regex, replacement);
+  };
+
+  if (scrubMode === 'strict') {
+    apply(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g, '[redacted-name]');
+  }
+
+  apply(/\b\d{3}-\d{2}-\d{4}\b/g, '[redacted-ssn]');
+  apply(/[\w.-]+@[\w.-]+\.[A-Za-z]{2,}/g, '[redacted-email]');
+
+  apply(/(seed phrase|recovery phrase|mnemonic phrase|private key|wallet seed)/gi, '[redacted-crypto-secret]');
+  apply(/\b0x[a-fA-F0-9]{40}\b/g, '[redacted-eth-address]');
+  apply(/\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b/g, '[redacted-btc-address]');
+
+  apply(/\b(?:\d[ -]*?){13,16}\b/g, '[redacted-card-or-account]');
+  apply(/\b\d{10,20}\b/g, '[redacted-account-number]');
+
+  if (scrubMode === 'strict') {
+    apply(/\b[ABDEGHJKLMNPRSTVWXYZ]\d{2}(?:\.\d{1,4})?\b/g, '[redacted-medical-code]');
+    apply(/(Diagnosis\s*:\s*)(.+)/gi, '$1[redacted-medical-diagnosis]');
+  }
+
+  return { scrubbedPrompt, redactions };
+}
+
 // Tenant-aware /query endpoint (same pipeline as /proxy, but requires API key and logs usage)
 app.post('/query', tenantAuth, async (req, res) => {
   try {
     const { prompt, metadata, model } = req.body || {};
+    const scrubMode = req.body?.scrub_mode || req.body?.scrubMode || 'strict';
+    const modelFamily = req.body?.model_family || req.body?.modelFamily;
+    const allowFallback = Boolean(req.body?.model_fallback || req.body?.modelFallback);
 
     // Instance-level, anonymous telemetry: count requests only when
     // QUIETER_TELEMETRY_ENABLED=true. This never inspects prompt content
@@ -968,61 +1013,13 @@ app.post('/query', tenantAuth, async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Missing or invalid "prompt"' });
     }
 
-    // Reuse the same scrubber logic as /proxy for now
-    let redactions = 0;
-    redactions += countMatches(prompt, /\b[A-Z][a-z]+ [A-Z][a-z]+\b/);
-    redactions += countMatches(prompt, /\b\d{3}-\d{2}-\d{4}\b/);
-    redactions += countMatches(prompt, /[\w.-]+@[\w.-]+\.[A-Za-z]{2,}/);
-
-    let scrubbedPrompt = prompt
-      .replace(/\b[A-Z][a-z]+ [A-Z][a-z]+\b/g, '[redacted-name]')
-      .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[redacted-ssn]')
-      .replace(/[\w.-]+@[\w.-]+\.[A-Za-z]{2,}/g, '[redacted-email]');
-
-    redactions += countMatches(scrubbedPrompt, /(seed phrase|recovery phrase|mnemonic phrase|private key|wallet seed)/i);
-    scrubbedPrompt = scrubbedPrompt.replace(
-      /(seed phrase|recovery phrase|mnemonic phrase|private key|wallet seed)/gi,
-      '[redacted-crypto-secret]'
-    );
-    redactions += countMatches(scrubbedPrompt, /\b0x[a-fA-F0-9]{40}\b/);
-    scrubbedPrompt = scrubbedPrompt.replace(
-      /\b0x[a-fA-F0-9]{40}\b/g,
-      '[redacted-eth-address]'
-    );
-    redactions += countMatches(scrubbedPrompt, /\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b/);
-    scrubbedPrompt = scrubbedPrompt.replace(
-      /\b[13][a-km-zA-HJ-NP-Z1-9]{25,34}\b/g,
-      '[redacted-btc-address]'
-    );
-
-    redactions += countMatches(scrubbedPrompt, /\b(?:\d[ -]*?){13,16}\b/);
-    scrubbedPrompt = scrubbedPrompt.replace(
-      /\b(?:\d[ -]*?){13,16}\b/g,
-      '[redacted-card-or-account]'
-    );
-    redactions += countMatches(scrubbedPrompt, /\b\d{10,20}\b/);
-    scrubbedPrompt = scrubbedPrompt.replace(
-      /\b\d{10,20}\b/g,
-      '[redacted-account-number]'
-    );
-
-    redactions += countMatches(scrubbedPrompt, /\b[ABDEGHJKLMNPRSTVWXYZ]\d{2}(?:\.\d{1,4})?\b/);
-    scrubbedPrompt = scrubbedPrompt.replace(
-      /\b[ABDEGHJKLMNPRSTVWXYZ]\d{2}(?:\.\d{1,4})?\b/g,
-      '[redacted-medical-code]'
-    );
-    redactions += countMatches(scrubbedPrompt, /(Diagnosis\s*:\s*)(.+)/i);
-    scrubbedPrompt = scrubbedPrompt.replace(
-      /(Diagnosis\s*:\s*)(.+)/gi,
-      '$1[redacted-medical-diagnosis]'
-    );
+    const { scrubbedPrompt, redactions } = scrubPromptWithMode(prompt, scrubMode);
 
     const scrubbedMetadata = metadata
       ? { ...metadata, user: undefined, email: undefined, session_id: undefined }
       : undefined;
 
-    const modelConfig = await resolveModelConfig(model || 'auto');
-    const modelName = modelConfig.api_model_name;
+    const candidates = await resolveModelCandidates(model || 'auto', modelFamily);
     const maxTokensRaw = req.body?.max_tokens ?? req.body?.maxTokens;
     const temperatureRaw = req.body?.temperature;
     const systemPrompt = req.body?.system ?? req.body?.systemPrompt;
@@ -1034,7 +1031,6 @@ app.post('/query', tenantAuth, async (req, res) => {
       : 0.7;
 
     const payload = {
-      model: modelName,
       max_tokens: maxTokens,
       temperature,
       messages: [
@@ -1049,7 +1045,11 @@ app.post('/query', tenantAuth, async (req, res) => {
     }
 
     const start = Date.now();
-    const message = await anthropic.messages.create(payload);
+    const { message, modelConfig, fallbackUsed } = await callAnthropicWithFallback(
+      candidates,
+      payload,
+      allowFallback
+    );
     const latencyMs = Date.now() - start;
 
     const textPart = message.content?.find?.(p => p.type === 'text');
@@ -1106,8 +1106,17 @@ app.post('/query', tenantAuth, async (req, res) => {
       prompt: scrubbedPrompt,
       metadata: scrubbedMetadata,
       model: modelConfig.id,
+      modelInfo: {
+        id: modelConfig.id,
+        displayName: modelConfig.display_name,
+        provider: modelConfig.provider,
+        apiModelName: modelConfig.api_model_name,
+      },
+      modelFamily: normalizeModelFamily(modelFamily),
+      modelFallbackUsed: fallbackUsed,
       latencyMs,
       modelResponse: modelText,
+      scrubMode,
       inputTokens,
       outputTokens,
       totalTokens,

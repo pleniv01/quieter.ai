@@ -14,6 +14,7 @@
       <RouterLink to="/privacy" class="nav-link">Privacy</RouterLink>
       <RouterLink to="/developers" class="nav-link">Open source</RouterLink>
       <RouterLink to="/dashboard" class="nav-link">Dashboard</RouterLink>
+      <RouterLink v-if="accountId" to="/use" class="nav-link">Use Quieter</RouterLink>
       <template v-if="!accountId">
         <RouterLink to="/signup" class="nav-link">Sign up</RouterLink>
         <RouterLink to="/login" class="nav-link">Log in</RouterLink>

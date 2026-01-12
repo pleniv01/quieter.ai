@@ -85,12 +85,25 @@ Quieter.ai is a **privacy-enhancing measure**, not a silver bullet.
 
 ## Browser Extension (Claude.ai)
 
+The extension currently targets **Claude.ai only**. Other providers (ChatGPT, Gemini, etc.) are
+not yet supported but can be added later.
+
 The extension supports two modes on Claude.ai:
 
-- **Use Quieter (header button)**: opens a modal to send a prompt through Quieter and view the response. You can insert the response back into Claude’s input.
+- **Use Quieter (header button)**: injected into the Claude.ai header when the user is logged into Claude and the extension is enabled. It opens a modal to send a prompt through Quieter and view the response. You can insert the response back into Claude’s input. The modal also lets you choose scrub mode and a model family.
 - **Rewrite mode (optional)**: intercepts Claude’s send events and routes the prompt to Quieter instead of Claude’s backend. This updates your Quieter usage and keeps the request behind the privacy shield.
 
 Rewrite mode is controlled from the extension popup and is off by default.
+
+---
+
+## Use Quieter (Web)
+
+If you want to use Quieter without Claude, the hosted site includes a simple web prompt page:
+
+- Log in, then open **Use Quieter** from the navbar.
+- Paste your `qtr_...` API key (stored locally if you choose).
+- Pick scrub mode and model family, then send a prompt directly to `/query`.
 
 ---
 
@@ -140,6 +153,17 @@ QUIETER_DEFAULT_MODEL_ID=anthropic:claude-3-5-sonnet-latest
 ```
 
 If unset, Quieter selects the cheapest enabled model in `model_configs`.
+
+---
+
+## Model Families and Fallback
+
+Instead of hard-coding a specific model ID, you can request a **model family**:
+
+- `haiku`, `sonnet`, or `opus`
+
+Quieter will select the best enabled model that matches the family. If a model is missing or
+sunset, you can enable a fallback option to try the next available model.
 
 ---
 
