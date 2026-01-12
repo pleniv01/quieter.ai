@@ -30,113 +30,14 @@
         accounts will not affect this dashboard.
       </p>
 
-      <div class="profile-card" v-if="usage">
-        <h2>Profile settings (read-only for now)</h2>
-        <p>
-          <strong>Profile name:</strong> {{ profileName || 'Default tenant' }}<br />
-          <strong>Total profiles for this account:</strong> {{ tenantCount }}
-        </p>
-        <p class="profile-note">
-          Quieter.ai currently uses a single profile per account by default. In the future, you’ll be
-          able to manage multiple profiles/workspaces and configure alerts per profile.
-        </p>
-      </div>
-
-      <div v-if="usage && usage.totalRequests === 0" class="getting-started">
-        <h2>Getting started with your Quieter shield</h2>
-        <p>
-          You’ve created an account, but haven’t sent any traffic through Quieter.ai yet. To start
-          seeing "conversations shielded" here, you can:
-        </p>
-        <ul>
-          <li>
-            Use the browser extension’s test prompt (paste your <code>qtr_...</code> key in the
-            popup and send a sample question).
-          </li>
-          <li>
-            Or run a quick <code>curl</code> call:
-            <code>
-              curl -X POST https://quieteraiapp-production.up.railway.app/query \
-                -H "Authorization: Bearer {{QUIETER_API_KEY}}" \
-                -H "Content-Type: application/json" \
-                -d '{"prompt":"Say hello from Quieter.ai","metadata":{"source":"dashboard-getting-started"}}'
-            </code>
-          </li>
-        </ul>
-        <p class="getting-started-note">
-          After you send a few test requests, refresh this page to see your protected usage numbers
-          update.
-        </p>
-      </div>
-
-      <div v-if="usage" class="billing-card">
-        <h2>Billing & plan</h2>
-        <p>
-          <strong>Plan:</strong>
-          <span v-if="usage.plan && usage.plan.toLowerCase() !== 'dev'">
-            {{ usage.plan === 'quieter-hosted' ? 'Quieter Hosted' : usage.plan }}
-          </span>
-          <span v-else>None</span>
-          <br />
-          <strong>Credits remaining:</strong>
-          <span>{{ formatCredits(usage.creditsRemainingCents) }}</span>
-        </p>
-        <p v-if="lastPayment" class="billing-note">
-          <strong>Last payment:</strong>
-          ${{ (lastPayment.amountCents / 100).toFixed(2) }}
-          <span v-if="lastPayment.paidAt">
-            on {{ new Date(lastPayment.paidAt).toLocaleString() }}
-          </span>
-        </p>
-        <p v-else class="billing-note">
-          <strong>Last payment:</strong> none recorded yet.
-        </p>
-        <p class="billing-note">
-          Base plan: ${{ (subscriptionPriceCents / 100).toFixed(2) }}/mo includes
-          {{ subscriptionCredits }} credits. Top-ups: ${{ (topupPriceCents / 100).toFixed(2) }} for
-          {{ topupCredits }} credits.
-        </p>
-        <div class="billing-actions">
-          <button
-            v-if="!hasSubscription"
-            type="button"
-            class="secondary"
-            @click="startSubscription"
-            :disabled="startingSubscription"
-          >
-            {{ startingSubscription ? 'Redirecting…' : `Subscribe ($${(subscriptionPriceCents / 100).toFixed(2)}/mo)` }}
-          </button>
-          <button type="button" class="secondary" @click="startTopup" :disabled="startingTopup">
-            {{ startingTopup ? 'Redirecting…' : `Top up ${topupCredits} credits ($${(topupPriceCents / 100).toFixed(2)})` }}
-          </button>
-        </div>
-      </div>
-
-      <div v-if="report" class="report-card">
-        <h2>Usage report (current)</h2>
-        <p class="report-note">
-          This reflects estimated provider usage. It does not include your subscription or top-ups.
-        </p>
-        <p>
-          <strong>Conversations shielded:</strong> {{ report.totalRequests }}<br />
-          <strong>Approx. private tokens:</strong> {{ report.totalTokens }}<br />
-          <strong>Redactions applied:</strong> {{ report.totalRedactions }}<br />
-          <strong>Estimated provider cost:</strong>
-          ${{ (report.providerCostCents / 100).toFixed(2) }}<br />
-          <strong>Provider billing (estimated):</strong>
-          ${{ (report.billedCents / 100).toFixed(2) }}
-        </p>
-      </div>
-
       <div class="profile-card" v-if="tenants.length">
-        <h2>My API keys</h2>
+        <h2>Quieter API keys</h2>
         <p class="profile-note">
-          For security, existing keys are never shown. Generate a new key to view and copy it once.
+          Existing keys are never shown. Generate a new key below to view and copy it once.
         </p>
         <div v-for="tenant in tenants" :key="tenant.id" class="key-row">
           <div class="key-meta">
-            <strong>{{ tenant.name || 'Default tenant' }}</strong><br />
-            <span class="muted">{{ tenant.id }}</span>
+            <strong>Tenant:</strong> {{ tenant.name || 'Default tenant' }}
           </div>
           <div class="key-actions">
             <button
@@ -144,6 +45,7 @@
               class="secondary"
               @click="rotateApiKey(tenant.id)"
               :disabled="rotatingTenantId === tenant.id"
+              title="Generating a new key disables the previous key."
             >
               {{ rotatingTenantId === tenant.id ? 'Generating…' : 'Generate new key' }}
             </button>
@@ -155,6 +57,22 @@
         </div>
         <p v-if="tenantsError" class="error">{{ tenantsError }}</p>
       </div>
+
+      <div class="profile-card" v-if="usage">
+        <h2>Account details</h2>
+        <p>
+          <strong>Profile name:</strong> {{ profileName || 'Default tenant' }}<br />
+          <strong>Total profiles for this account:</strong> {{ tenantCount }}
+          <span v-if="primaryTenantId"><br /><strong>Primary tenant ID:</strong> <code>{{ primaryTenantId }}</code></span>
+        </p>
+        <p class="profile-note">
+          Quieter.ai currently uses a single profile per account by default. In the future, you’ll be
+          able to manage multiple profiles/workspaces and configure alerts per profile.
+        </p>
+      </div>
+
+      
+
 
       <button type="button" @click="loadUsage" :disabled="loading">
         {{ loading ? 'Loading usage…' : 'Refresh usage' }}
@@ -203,6 +121,91 @@
           </dd>
         </div>
       </dl>
+
+      <div v-if="report" class="report-card">
+        <h2>Usage report (current)</h2>
+        <p class="report-note">
+          This reflects estimated provider usage. It does not include your subscription or top-ups.
+        </p>
+        <p>
+          <strong>Conversations shielded:</strong> {{ report.totalRequests }}<br />
+          <strong>Approx. private tokens:</strong> {{ report.totalTokens }}<br />
+          <strong>Redactions applied:</strong> {{ report.totalRedactions }}<br />
+          <strong>Estimated provider cost:</strong>
+          ${{ (report.providerCostCents / 100).toFixed(2) }}<br />
+          <strong>Provider billing (estimated):</strong>
+          ${{ (report.billedCents / 100).toFixed(2) }}
+        </p>
+      </div>
+
+      <div v-if="usage" class="billing-card">
+        <h2>Billing & plan</h2>
+        <p>
+          <strong>Plan:</strong>
+          <span v-if="usage.plan && usage.plan.toLowerCase() !== 'dev'">
+            {{ usage.plan === 'quieter-hosted' ? 'Quieter Hosted' : usage.plan }}
+          </span>
+          <span v-else>None</span>
+          <br />
+          <strong>Credits remaining:</strong>
+          <span>{{ formatCredits(usage.creditsRemainingCents) }}</span>
+        </p>
+        <p v-if="lastPayment" class="billing-note">
+          <strong>Last payment:</strong>
+          ${{ (lastPayment.amountCents / 100).toFixed(2) }}
+          <span v-if="lastPayment.paidAt">
+            on {{ new Date(lastPayment.paidAt).toLocaleString() }}
+          </span>
+        </p>
+        <p v-else class="billing-note">
+          <strong>Last payment:</strong> none recorded yet.
+        </p>
+        <p class="billing-note">
+          Base plan: ${{ (subscriptionPriceCents / 100).toFixed(2) }}/mo includes
+          {{ subscriptionCredits }} credits. Top-ups: ${{ (topupPriceCents / 100).toFixed(2) }} for
+          {{ topupCredits }} credits.
+        </p>
+        <div class="billing-actions">
+          <button
+            v-if="!hasSubscription"
+            type="button"
+            class="secondary"
+            @click="startSubscription"
+            :disabled="startingSubscription"
+          >
+            {{ startingSubscription ? 'Redirecting…' : `Subscribe ($${(subscriptionPriceCents / 100).toFixed(2)}/mo)` }}
+          </button>
+          <button type="button" class="secondary" @click="startTopup" :disabled="startingTopup">
+            {{ startingTopup ? 'Redirecting…' : `Top up ${topupCredits} credits ($${(topupPriceCents / 100).toFixed(2)})` }}
+          </button>
+        </div>
+      </div>
+
+      <div v-if="usage && usage.totalRequests === 0" class="getting-started">
+        <h2>Getting started</h2>
+        <p>
+          You haven’t sent any traffic through Quieter yet. To start seeing usage here, you can:
+        </p>
+        <ul>
+          <li>
+            Use the browser extension’s test prompt (paste your <code>qtr_...</code> key in the
+            popup and send a sample question).
+          </li>
+          <li>
+            Or run a quick <code>curl</code> call:
+            <code>
+              curl -X POST https://quieteraiapp-production.up.railway.app/query \
+                -H "Authorization: Bearer {{QUIETER_API_KEY}}" \
+                -H "Content-Type: application/json" \
+                -d '{"prompt":"Say hello from Quieter.ai","metadata":{"source":"dashboard-getting-started"}}'
+            </code>
+          </li>
+        </ul>
+        <p class="getting-started-note">
+          After you send a few test requests, refresh this page to see your protected usage numbers
+          update.
+        </p>
+      </div>
     </div>
   </section>
 </template>
@@ -245,6 +248,7 @@ const billingStatus = ref(new URLSearchParams(window.location.search).get('billi
 const hasSubscription = computed(
   () => usage.value && usage.value.plan && usage.value.plan.toLowerCase() !== 'dev'
 );
+const primaryTenantId = computed(() => tenants.value[0]?.id || '');
 
 function formatCredits(cents) {
   // Backend stores credits as integer units; in our pricing 1 cent = 1 credit.
